@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { format } from 'date-fns'
 import { ThemeToggle } from '@/lib/theme'
+import ExportButton from './ExportButton'
 
 async function getStudentData(token: string) {
   const { data: student } = await supabase
@@ -56,7 +57,10 @@ export default async function StudentPage({ params }: { params: Promise<{ token:
               {student.name}
             </h1>
           </div>
-          <ThemeToggle />
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <ExportButton student={student} lessons={lessons} repertoire={repertoire} />
+            <ThemeToggle />
+          </div>
         </div>
       </header>
 

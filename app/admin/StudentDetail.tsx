@@ -5,6 +5,13 @@ import { format, differenceInMonths } from 'date-fns'
 import type { Student, Song } from '@/lib/supabase'
 import StudentModal from './StudentModal'
 import { ThemeToggle } from '@/lib/theme'
+import { useToast } from '@/lib/toast'
+
+function getInitials(name: string) {
+  const parts = name.trim().split(/\s+/)
+  if (parts.length === 1) return parts[0].charAt(0).toUpperCase()
+  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase()
+}
 
 type Props = {
   student: Student
@@ -13,11 +20,13 @@ type Props = {
 }
 
 export default function StudentDetail({ student: initialStudent, onBack, onStudentUpdated }: Props) {
+  const { toast } = useToast()
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [showEditModal, setShowEditModal] = useState(false)
   const [showAddLesson, setShowAddLesson] = useState(false)
   const [allSongs, setAllSongs] = useState<Song[]>([])
+  const [exporting, setExporting] = useState(false)
 
   const load = useCallback(async () => {
     const [sRes, songsRes] = await Promise.all([
@@ -33,108 +42,134 @@ export default function StudentDetail({ student: initialStudent, onBack, onStude
 
   async function toggleActive() {
     const newActive = !data.student.active
-    const body: any = { active: newActive }
-    if (!newActive) body.inactive_date = new Date().toISOString().split('T')[0]
-    else body.inactive_date = null
+    const body: any = { active: newActive, inactive_date: newActive ? null : new Date().toISOString().split('T')[0] }
     const res = await fetch(`/api/students/${data.student.id}`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
     })
-    if (res.ok) { onStudentUpdated(await res.json()); load() }
+    if (res.ok) {
+      const updated = await res.json()
+      onStudentUpdated(updated)
+      load()
+      toast(newActive ? 'Student reactivated' : 'Student marked inactive')
+    }
   }
 
   async function deleteStudent() {
     if (!confirm(`Delete ${data?.student.name}? This cannot be undone.`)) return
     await fetch(`/api/students/${data.student.id}`, { method: 'DELETE' })
+    toast('Student deleted')
     onBack()
   }
 
   async function deleteLesson(lessonId: string) {
     if (!confirm('Delete this lesson?')) return
     await fetch(`/api/lessons/${lessonId}`, { method: 'DELETE' })
+    toast('Lesson deleted')
     load()
   }
 
-  async function sendEmail(lessonId: string) {
-    const res = await fetch('/api/email', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ lesson_id: lessonId }),
-    })
-    if (res.ok) alert('Email sent!')
-    else { const d = await res.json(); alert('Error: ' + d.error) }
+  async function exportPDF() {
+    if (!data) return
+    setExporting(true)
+    try {
+      const { exportStudentPDF } = await import('@/lib/exportPDF')
+      await exportStudentPDF(data.student, data.lessons, data.repertoire)
+      toast('PDF downloaded')
+    } catch (e) {
+      toast('Export failed', 'error')
+    }
+    setExporting(false)
   }
 
   const student = data?.student || initialStudent
   const tenure = differenceInMonths(new Date(), new Date(student.start_date + 'T12:00:00'))
+  const displayName = student.name.replace('__test__', '').trim()
 
   return (
     <div className="admin-sans" style={{ minHeight: '100vh', background: 'var(--bg)' }}>
       {/* Nav */}
       <nav style={{
         borderBottom: '1px solid var(--border)', background: 'var(--bg-card)',
-        padding: '0 20px', display: 'flex', alignItems: 'center',
+        padding: '0 16px', display: 'flex', alignItems: 'center',
         justifyContent: 'space-between', height: 54,
         position: 'sticky', top: 0, zIndex: 10,
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-          <button onClick={onBack} className="btn btn-ghost btn-sm" style={{ flexShrink: 0 }}>← Students</button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+          <button onClick={onBack} className="btn btn-ghost btn-sm" style={{ flexShrink: 0 }}>← Back</button>
           <span style={{ color: 'var(--text-muted)', fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {student.name}
+            {displayName}
           </span>
         </div>
         <ThemeToggle />
       </nav>
 
-      <main style={{ maxWidth: 860, margin: '0 auto', padding: '24px 20px' }}>
-        {/* Student header */}
-        <div className="card" style={{ padding: 20, marginBottom: 24 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
-                <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)' }}>{student.name}</h1>
-                <span className={`tag ${student.active ? 'tag-active' : 'tag-inactive'}`}>
+      <main style={{ maxWidth: 820, margin: '0 auto', padding: '20px 16px 60px' }}>
+
+        {/* Student header card */}
+        <div className="card" style={{ padding: '18px 16px', marginBottom: 20 }}>
+          {/* Top row: avatar + name + status */}
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, marginBottom: 14 }}>
+            <div style={{
+              width: 44, height: 44, borderRadius: '50%', flexShrink: 0,
+              background: 'var(--accent-tag-bg)', border: '1px solid var(--accent-tag-border)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: 'var(--accent)', fontSize: 14, fontWeight: 700,
+            }}>
+              {getInitials(displayName)}
+            </div>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <h1 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)' }}>{displayName}</h1>
+                <span className={`tag ${student.active ? 'tag-active' : 'tag-inactive'}`} style={{ fontSize: 11 }}>
                   {student.active ? 'Active' : 'Inactive'}
                 </span>
-                <span className="tag tag-skill">{student.skill_level}</span>
+                <span className="tag tag-skill" style={{ fontSize: 11 }}>{student.skill_level}</span>
               </div>
-              <div style={{ color: 'var(--text-muted)', fontSize: 13, display: 'flex', flexWrap: 'wrap', gap: '3px 14px' }}>
+              <div style={{ color: 'var(--text-muted)', fontSize: 12, marginTop: 5, display: 'flex', flexWrap: 'wrap', gap: '3px 12px' }}>
                 {student.email && <span>✉ {student.email}</span>}
                 <span>{student.lesson_frequency}</span>
-                <span>Since {format(new Date(student.start_date + 'T12:00:00'), 'MMMM d, yyyy')}</span>
+                <span>Since {format(new Date(student.start_date + 'T12:00:00'), 'MMM d, yyyy')}</span>
                 {tenure > 0 && <span>{tenure}mo</span>}
                 <span>{student.lesson_count} lesson{student.lesson_count !== 1 ? 's' : ''}</span>
               </div>
-              {student.admin_notes && (
-                <div style={{
-                  marginTop: 12, padding: '9px 13px',
-                  background: 'var(--bg-elevated)', borderRadius: 6, border: '1px solid var(--border)',
-                  color: 'var(--text-secondary)', fontSize: 13, lineHeight: 1.6,
-                }}>
-                  <span style={{ color: 'var(--text-muted)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Notes · </span>
-                  {student.admin_notes}
-                </div>
-              )}
             </div>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', flexShrink: 0 }}>
-              <button className="btn btn-ghost btn-sm" onClick={() => setShowEditModal(true)}>Edit</button>
-              <button className="btn btn-ghost btn-sm" onClick={toggleActive}>
-                {student.active ? 'Deactivate' : 'Reactivate'}
-              </button>
-              <a href={`/s/${student.token}`} target="_blank" rel="noopener" className="btn btn-ghost btn-sm">
-                Page ↗
-              </a>
-              <button className="btn btn-danger btn-sm" onClick={deleteStudent}>Delete</button>
+          </div>
+
+          {student.admin_notes && (
+            <div style={{
+              padding: '9px 12px', background: 'var(--bg-elevated)',
+              borderRadius: 6, border: '1px solid var(--border)',
+              color: 'var(--text-secondary)', fontSize: 13, lineHeight: 1.6, marginBottom: 14,
+            }}>
+              <span style={{ color: 'var(--text-muted)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Notes · </span>
+              {student.admin_notes}
             </div>
+          )}
+
+          {/* Action buttons - wrap on mobile */}
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            <button className="btn btn-ghost btn-sm" onClick={() => setShowEditModal(true)}>Edit</button>
+            <button className="btn btn-ghost btn-sm" onClick={toggleActive}>
+              {student.active ? 'Deactivate' : 'Reactivate'}
+            </button>
+            <a href={`/s/${student.token}`} target="_blank" rel="noopener" className="btn btn-ghost btn-sm">
+              Student page ↗
+            </a>
+            <button className="btn btn-ghost btn-sm" onClick={exportPDF} disabled={exporting}>
+              {exporting ? 'Exporting…' : '↓ Export PDF'}
+            </button>
+            <button className="btn btn-danger btn-sm" onClick={deleteStudent}>Delete</button>
           </div>
         </div>
 
-        {/* Two-column on desktop, stacked on mobile */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 280px', gap: 20, alignItems: 'start' }}
-          className="mobile-stack">
+        {/* Lessons + Repertoire */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 260px', gap: 20, alignItems: 'start' }}
+          className="responsive-grid">
 
           {/* Lessons */}
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-              <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>Lessons</h2>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>Lessons</h2>
               <button className="btn btn-primary btn-sm" onClick={() => setShowAddLesson(true)}>+ Log Lesson</button>
             </div>
 
@@ -147,36 +182,52 @@ export default function StudentDetail({ student: initialStudent, onBack, onStude
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {data.lessons.map((lesson: any, i: number) => (
-                  <div key={lesson.id} className="card" style={{ padding: 18 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, gap: 10, flexWrap: 'wrap' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div key={lesson.id} className="card" style={{ padding: '16px' }}>
+                    {/* Lesson header */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12, gap: 8 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                         <span style={{ color: 'var(--text-primary)', fontWeight: 600, fontSize: 14 }}>
-                          {format(new Date(lesson.lesson_date + 'T12:00:00'), 'MMMM d, yyyy')}
+                          {format(new Date(lesson.lesson_date + 'T12:00:00'), 'MMM d, yyyy')}
                         </span>
-                        {i === 0 && <span className="tag tag-active" style={{ fontSize: 11 }}>Latest</span>}
+                        {i === 0 && <span className="tag tag-active" style={{ fontSize: 10 }}>Latest</span>}
                       </div>
-                      <div style={{ display: 'flex', gap: 6 }}>
+                      <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
                         {student.email && (
-                          <button className="btn btn-ghost btn-sm" onClick={() => sendEmail(lesson.id)}>✉</button>
+                          <button className="btn btn-ghost btn-sm" style={{ padding: '4px 10px' }}
+                            onClick={async () => {
+                              const res = await fetch('/api/email', {
+                                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ lesson_id: lesson.id }),
+                              })
+                              if (res.ok) toast('Email sent to ' + student.email?.split('@')[0])
+                              else toast('Email failed', 'error')
+                            }}>✉</button>
                         )}
-                        <button className="btn btn-danger btn-sm" onClick={() => deleteLesson(lesson.id)}>Delete</button>
+                        <button className="btn btn-danger btn-sm" style={{ padding: '4px 10px' }}
+                          onClick={() => deleteLesson(lesson.id)}>✕</button>
                       </div>
                     </div>
 
                     <div style={{ marginBottom: 10 }}>
-                      <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 5 }}>What we covered</div>
-                      <p style={{ color: 'var(--text-secondary)', fontSize: 14, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{lesson.what_we_covered}</p>
+                      <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 5 }}>What we covered</div>
+                      <p style={{ color: 'var(--text-secondary)', fontSize: 13, lineHeight: 1.65, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                        {lesson.what_we_covered}
+                      </p>
                     </div>
+
                     <div style={{ marginBottom: lesson.lesson_songs?.length ? 10 : 0 }}>
-                      <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 5 }}>Focus for the week</div>
-                      <p style={{ color: 'var(--text-secondary)', fontSize: 14, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{lesson.focus_for_week}</p>
+                      <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 5 }}>Focus for the week</div>
+                      <p style={{ color: 'var(--text-secondary)', fontSize: 13, lineHeight: 1.65, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                        {lesson.focus_for_week}
+                      </p>
                     </div>
+
                     {lesson.lesson_songs?.length > 0 && (
                       <div>
-                        <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 5 }}>Songs</div>
+                        <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 5 }}>Songs</div>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
                           {lesson.lesson_songs.map((ls: any) => (
-                            <span key={ls.song.id} className="tag tag-skill" style={{ fontSize: 12 }}>
+                            <span key={ls.song.id} className="tag tag-skill" style={{ fontSize: 11 }}>
                               {ls.song.title}{ls.song.artist ? ` — ${ls.song.artist}` : ''}
                             </span>
                           ))}
@@ -191,18 +242,18 @@ export default function StudentDetail({ student: initialStudent, onBack, onStude
 
           {/* Repertoire sidebar */}
           <div>
-            <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 14 }}>Repertoire</h2>
+            <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 12 }}>Repertoire</h2>
             <div className="card" style={{ overflow: 'hidden' }}>
               {!data?.repertoire?.length ? (
                 <div style={{ padding: 16, color: 'var(--text-muted)', fontSize: 13 }}>No songs yet.</div>
               ) : data.repertoire.map((item: any, i: number) => (
                 <div key={item.song.id} style={{
-                  padding: '11px 14px',
+                  padding: '10px 14px',
                   borderBottom: i < data.repertoire.length - 1 ? '1px solid var(--border)' : 'none',
                 }}>
-                  <div style={{ color: 'var(--text-primary)', fontSize: 14 }}>{item.song.title}</div>
-                  {item.song.artist && <div style={{ color: 'var(--text-muted)', fontSize: 12, marginTop: 2 }}>{item.song.artist}</div>}
-                  <div style={{ color: 'var(--text-muted)', fontSize: 11, marginTop: 3 }}>
+                  <div style={{ color: 'var(--text-primary)', fontSize: 13, wordBreak: 'break-word' }}>{item.song.title}</div>
+                  {item.song.artist && <div style={{ color: 'var(--text-muted)', fontSize: 11, marginTop: 2 }}>{item.song.artist}</div>}
+                  <div style={{ color: 'var(--text-muted)', fontSize: 11, marginTop: 2 }}>
                     {format(new Date(item.first_worked_on + 'T12:00:00'), 'MMM yyyy')}
                   </div>
                 </div>
@@ -213,11 +264,13 @@ export default function StudentDetail({ student: initialStudent, onBack, onStude
       </main>
 
       {showEditModal && (
-        <StudentModal student={student} onClose={() => setShowEditModal(false)} onSaved={() => { setShowEditModal(false); load() }} />
+        <StudentModal student={student} onClose={() => setShowEditModal(false)}
+          onSaved={() => { setShowEditModal(false); load(); toast('Student updated') }} />
       )}
       {showAddLesson && (
         <AddLessonModal
           studentId={student.id}
+          studentEmail={student.email}
           allSongs={allSongs}
           onClose={() => setShowAddLesson(false)}
           onSaved={() => { setShowAddLesson(false); load() }}
@@ -227,9 +280,14 @@ export default function StudentDetail({ student: initialStudent, onBack, onStude
   )
 }
 
-function AddLessonModal({ studentId, allSongs, onClose, onSaved }: {
-  studentId: string; allSongs: Song[]; onClose: () => void; onSaved: () => void
+function AddLessonModal({ studentId, studentEmail, allSongs, onClose, onSaved }: {
+  studentId: string
+  studentEmail: string | null
+  allSongs: Song[]
+  onClose: () => void
+  onSaved: () => void
 }) {
+  const { toast } = useToast()
   const [form, setForm] = useState({
     lesson_date: new Date().toISOString().split('T')[0],
     what_we_covered: '', focus_for_week: '',
@@ -270,81 +328,117 @@ function AddLessonModal({ studentId, allSongs, onClose, onSaved }: {
       setError('Please fill in both lesson fields'); return
     }
     setSaving(true); setError('')
+
+    // Save lesson
     const res = await fetch('/api/lessons', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...form, student_id: studentId, song_ids: selected }),
     })
+
+    if (!res.ok) {
+      const d = await res.json(); setError(d.error || 'Error'); setSaving(false); return
+    }
+
+    const lesson = await res.json()
+
+    // Auto-send email if student has one
+    if (studentEmail) {
+      const emailRes = await fetch('/api/email', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lesson_id: lesson.id }),
+      })
+      if (emailRes.ok) toast('Lesson saved & notes emailed to student')
+      else toast('Lesson saved (email failed)', 'error')
+    } else {
+      toast('Lesson saved')
+    }
+
     setSaving(false)
-    if (res.ok) onSaved()
-    else { const d = await res.json(); setError(d.error || 'Error') }
+    onSaved()
   }
 
   return (
     <div style={{
       position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      zIndex: 100, padding: 16,
+      display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+      zIndex: 100,
     }} onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="card admin-sans" style={{ width: '100%', maxWidth: 560, padding: 24, maxHeight: '92vh', overflowY: 'auto' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 22 }}>
+      {/* Sheet-style modal — slides up from bottom on mobile, centered on desktop */}
+      <div className="card admin-sans" style={{
+        width: '100%', maxWidth: 580,
+        padding: '20px 20px 32px',
+        maxHeight: '92vh', overflowY: 'auto',
+        borderBottomLeftRadius: 0, borderBottomRightRadius: 0,
+        borderTopLeftRadius: 12, borderTopRightRadius: 12,
+        margin: '0 auto',
+      }}>
+        {/* Pull handle */}
+        <div style={{ width: 36, height: 4, background: 'var(--border)', borderRadius: 2, margin: '0 auto 18px' }} />
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <h2 style={{ fontSize: 17, fontWeight: 700, color: 'var(--text-primary)' }}>Log Lesson</h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 22, cursor: 'pointer' }}>×</button>
+          {studentEmail && (
+            <span style={{ fontSize: 12, color: 'var(--green)', background: 'rgba(61,122,82,0.1)', padding: '3px 10px', borderRadius: 20, border: '1px solid rgba(61,122,82,0.25)' }}>
+              ✉ Will auto-send
+            </span>
+          )}
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div>
             <label>Date</label>
-            <input type="date" value={form.lesson_date} onChange={e => setForm(f => ({ ...f, lesson_date: e.target.value }))} />
+            <input type="date" value={form.lesson_date}
+              onChange={e => setForm(f => ({ ...f, lesson_date: e.target.value }))} />
           </div>
           <div>
             <label>What we covered *</label>
-            <textarea value={form.what_we_covered} onChange={e => setForm(f => ({ ...f, what_we_covered: e.target.value }))}
-              placeholder="Describe what you worked on…" style={{ minHeight: 90 }} />
+            <textarea value={form.what_we_covered}
+              onChange={e => setForm(f => ({ ...f, what_we_covered: e.target.value }))}
+              placeholder="Describe what you worked on in this lesson…" style={{ minHeight: 90 }} />
           </div>
           <div>
             <label>Focus for the week *</label>
-            <textarea value={form.focus_for_week} onChange={e => setForm(f => ({ ...f, focus_for_week: e.target.value }))}
+            <textarea value={form.focus_for_week}
+              onChange={e => setForm(f => ({ ...f, focus_for_week: e.target.value }))}
               placeholder="What should they practice this week?" style={{ minHeight: 70 }} />
           </div>
 
           <div>
             <label>Songs worked on</label>
-            <input placeholder="Search songs…" value={songSearch} onChange={e => setSongSearch(e.target.value)} style={{ marginBottom: 6 }} />
-            <div style={{ maxHeight: 150, overflowY: 'auto', border: '1px solid var(--border)', borderRadius: 6, marginBottom: 8 }}>
+            <input placeholder="Search songs…" value={songSearch}
+              onChange={e => setSongSearch(e.target.value)} style={{ marginBottom: 6 }} />
+            <div style={{ maxHeight: 140, overflowY: 'auto', border: '1px solid var(--border)', borderRadius: 6, marginBottom: 8 }}>
               {filtered.map(song => (
                 <div key={song.id} onClick={() => toggle(song.id)} style={{
-                  padding: '9px 13px', cursor: 'pointer',
+                  padding: '9px 12px', cursor: 'pointer',
                   background: selected.includes(song.id) ? 'var(--accent-glow)' : 'transparent',
                   borderBottom: '1px solid var(--border)',
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                 }}>
-                  <span style={{ color: selected.includes(song.id) ? 'var(--accent)' : 'var(--text-secondary)', fontSize: 14 }}>
+                  <span style={{ color: selected.includes(song.id) ? 'var(--accent)' : 'var(--text-secondary)', fontSize: 13 }}>
                     {song.title}{song.artist ? ` — ${song.artist}` : ''}
                   </span>
-                  {selected.includes(song.id) && <span style={{ color: 'var(--accent)', fontSize: 13 }}>✓</span>}
+                  {selected.includes(song.id) && <span style={{ color: 'var(--accent)', fontSize: 12 }}>✓</span>}
                 </div>
               ))}
               {filtered.length === 0 && (
-                <div style={{ padding: '10px 13px', color: 'var(--text-muted)', fontSize: 13 }}>No songs match.</div>
+                <div style={{ padding: '10px 12px', color: 'var(--text-muted)', fontSize: 13 }}>No songs match.</div>
               )}
             </div>
-
-            {/* Add new song */}
-            <div style={{ padding: 12, background: 'var(--bg-elevated)', borderRadius: 6, border: '1px solid var(--border)' }}>
-              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>Add new song to library</div>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <input placeholder="Title" value={newTitle} onChange={e => setNewTitle(e.target.value)} style={{ flex: '2 1 120px' }} />
-                <input placeholder="Artist (optional)" value={newArtist} onChange={e => setNewArtist(e.target.value)} style={{ flex: '2 1 120px' }} />
+            <div style={{ padding: 11, background: 'var(--bg-elevated)', borderRadius: 6, border: '1px solid var(--border)' }}>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 8 }}>Add new song to library</div>
+              <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+                <input placeholder="Title" value={newTitle} onChange={e => setNewTitle(e.target.value)} style={{ flex: '2 1 100px' }} />
+                <input placeholder="Artist (optional)" value={newArtist} onChange={e => setNewArtist(e.target.value)} style={{ flex: '2 1 100px' }} />
                 <button className="btn btn-ghost btn-sm" onClick={addSong} style={{ flexShrink: 0 }}>Add</button>
               </div>
             </div>
-
             {selected.length > 0 && (
               <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 5 }}>
                 {selected.map(id => {
                   const song = localSongs.find(s => s.id === id)
                   return song ? (
-                    <span key={id} className="tag tag-skill" style={{ fontSize: 12 }}>
+                    <span key={id} className="tag tag-skill" style={{ fontSize: 11 }}>
                       {song.title}
                       <span onClick={() => toggle(id)} style={{ cursor: 'pointer', marginLeft: 5 }}>×</span>
                     </span>
@@ -360,7 +454,7 @@ function AddLessonModal({ studentId, allSongs, onClose, onSaved }: {
         <div style={{ display: 'flex', gap: 10, marginTop: 22, justifyContent: 'flex-end' }}>
           <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
           <button className="btn btn-primary" onClick={save} disabled={saving}>
-            {saving ? 'Saving…' : 'Log lesson'}
+            {saving ? 'Saving…' : studentEmail ? 'Save & Send Notes' : 'Log lesson'}
           </button>
         </div>
       </div>

@@ -3,11 +3,7 @@
 import { useState } from 'react'
 import type { Student } from '@/lib/supabase'
 
-type Props = {
-  student?: Student
-  onClose: () => void
-  onSaved: () => void
-}
+type Props = { student?: Student; onClose: () => void; onSaved: () => void }
 
 export default function StudentModal({ student, onClose, onSaved }: Props) {
   const [form, setForm] = useState({
@@ -21,50 +17,39 @@ export default function StudentModal({ student, onClose, onSaved }: Props) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
-  async function save() {
-    if (!form.name.trim()) { setError('Name is required'); return }
-    setSaving(true)
-    setError('')
-
-    const res = student
-      ? await fetch(`/api/students/${student.id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(form),
-        })
-      : await fetch('/api/students', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(form),
-        })
-
-    setSaving(false)
-    if (res.ok) { onSaved() }
-    else { const d = await res.json(); setError(d.error || 'Something went wrong') }
-  }
-
   function set(field: string, value: string) {
     setForm(f => ({ ...f, [field]: value }))
   }
 
+  async function save() {
+    if (!form.name.trim()) { setError('Name is required'); return }
+    setSaving(true); setError('')
+    const res = student
+      ? await fetch(`/api/students/${student.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) })
+      : await fetch('/api/students', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) })
+    setSaving(false)
+    if (res.ok) onSaved()
+    else { const d = await res.json(); setError(d.error || 'Something went wrong') }
+  }
+
   return (
     <div style={{
-      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100,
-      padding: 24,
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      zIndex: 100, padding: 16,
     }} onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="card admin-sans" style={{ width: '100%', maxWidth: 480, padding: 28 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-          <h2 style={{ fontSize: 18, fontWeight: 600, color: 'var(--text-primary)' }}>
+      <div className="card admin-sans" style={{ width: '100%', maxWidth: 460, padding: 24, maxHeight: '90vh', overflowY: 'auto' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 22 }}>
+          <h2 style={{ fontSize: 17, fontWeight: 700, color: 'var(--text-primary)' }}>
             {student ? 'Edit Student' : 'Add Student'}
           </h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 20, cursor: 'pointer' }}>×</button>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 22, cursor: 'pointer' }}>×</button>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div>
             <label>Name *</label>
-            <input value={form.name} onChange={e => set('name', e.target.value)} placeholder="Student name" />
+            <input value={form.name} onChange={e => set('name', e.target.value)} placeholder="Student name" autoFocus />
           </div>
           <div>
             <label>Email (optional)</label>
@@ -94,18 +79,14 @@ export default function StudentModal({ student, onClose, onSaved }: Props) {
           </div>
           <div>
             <label>Private Notes (admin only)</label>
-            <textarea
-              value={form.admin_notes}
-              onChange={e => set('admin_notes', e.target.value)}
-              placeholder="Anything you want to remember about this student…"
-              style={{ minHeight: 80 }}
-            />
+            <textarea value={form.admin_notes} onChange={e => set('admin_notes', e.target.value)}
+              placeholder="Anything to remember about this student…" style={{ minHeight: 80 }} />
           </div>
         </div>
 
-        {error && <div style={{ color: 'var(--red)', fontSize: 13, marginTop: 12 }}>{error}</div>}
+        {error && <div style={{ color: 'var(--red)', fontSize: 13, marginTop: 10 }}>{error}</div>}
 
-        <div style={{ display: 'flex', gap: 10, marginTop: 24, justifyContent: 'flex-end' }}>
+        <div style={{ display: 'flex', gap: 10, marginTop: 22, justifyContent: 'flex-end' }}>
           <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
           <button className="btn btn-primary" onClick={save} disabled={saving}>
             {saving ? 'Saving…' : student ? 'Save changes' : 'Add student'}

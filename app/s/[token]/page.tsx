@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { format } from 'date-fns'
-import type { Lesson, Song } from '@/lib/supabase'
+import { ThemeToggle } from '@/lib/theme'
 
 async function getStudentData(token: string) {
   const { data: student } = await supabase
@@ -10,17 +10,11 @@ async function getStudentData(token: string) {
     .eq('token', token)
     .eq('active', true)
     .single()
-
   if (!student) return null
 
   const { data: lessons } = await supabase
     .from('lessons')
-    .select(`
-      *,
-      lesson_songs (
-        song:songs (*)
-      )
-    `)
+    .select(`*, lesson_songs(song:songs(*))`)
     .eq('student_id', student.id)
     .order('lesson_date', { ascending: false })
 
@@ -36,7 +30,6 @@ async function getStudentData(token: string) {
 export default async function StudentPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params
   const data = await getStudentData(token)
-
   if (!data) notFound()
 
   const { student, lessons, repertoire } = data
@@ -45,54 +38,77 @@ export default async function StudentPage({ params }: { params: Promise<{ token:
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
-      {/* Header */}
       <header style={{
         borderBottom: '1px solid var(--border)',
-        padding: '32px 24px 24px',
-        maxWidth: 720,
-        margin: '0 auto',
+        background: 'var(--bg-card)',
+        position: 'sticky', top: 0, zIndex: 10,
       }}>
-        <div style={{ color: 'var(--text-muted)', fontSize: 12, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 8 }}>
-          Guitar Studio
-        </div>
-        <h1 style={{ fontSize: 28, fontWeight: 'normal', color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
-          {student.name}
-        </h1>
-        <div style={{ marginTop: 8, color: 'var(--text-secondary)', fontSize: 14 }}>
-          Student since {format(new Date(student.start_date), 'MMMM yyyy')}
-          {' · '}
-          {student.lesson_count} lesson{student.lesson_count !== 1 ? 's' : ''}
+        <div style={{
+          maxWidth: 680, margin: '0 auto',
+          padding: '14px 20px',
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        }}>
+          <div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+              Guitar Studio
+            </div>
+            <h1 style={{ fontSize: 20, fontWeight: 'normal', color: 'var(--text-primary)', marginTop: 2 }}>
+              {student.name}
+            </h1>
+          </div>
+          <ThemeToggle />
         </div>
       </header>
 
-      <main style={{ maxWidth: 720, margin: '0 auto', padding: '32px 24px 80px' }}>
+      <main style={{ maxWidth: 680, margin: '0 auto', padding: '28px 20px 80px' }}>
+
+        {/* Stats row */}
+        <div style={{
+          display: 'flex', gap: 12, marginBottom: 32, flexWrap: 'wrap',
+        }}>
+          {[
+            { label: 'Student since', value: format(new Date(student.start_date + 'T12:00:00'), 'MMM yyyy') },
+            { label: 'Lessons', value: student.lesson_count },
+            { label: 'Level', value: student.skill_level },
+          ].map(stat => (
+            <div key={stat.label} className="card" style={{ padding: '12px 18px', flex: '1 1 120px' }}>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: 'sans-serif' }}>
+                {stat.label}
+              </div>
+              <div style={{ fontSize: 16, color: 'var(--text-primary)', marginTop: 4 }}>
+                {stat.value}
+              </div>
+            </div>
+          ))}
+        </div>
 
         {/* Latest lesson */}
         {latestLesson ? (
-          <section className="fade-in" style={{ marginBottom: 48 }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 20 }}>
-              <h2 style={{ fontSize: 13, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--accent)' }}>
+          <section className="fade-in" style={{ marginBottom: 40 }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 14 }}>
+              <h2 style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--accent)', fontFamily: 'sans-serif' }}>
                 Last Lesson
               </h2>
-              <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>
+              <span style={{ color: 'var(--text-muted)', fontSize: 13, fontFamily: 'sans-serif' }}>
                 {format(new Date(latestLesson.lesson_date + 'T12:00:00'), 'MMMM d, yyyy')}
               </span>
             </div>
 
-            <div className="card" style={{ padding: 24, marginBottom: 16 }}>
-              <div style={{ marginBottom: 20 }}>
-                <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: 10 }}>
+            <div className="card" style={{ padding: '20px', marginBottom: 12 }}>
+              <div style={{ marginBottom: 18 }}>
+                <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 8, fontFamily: 'sans-serif' }}>
                   What we covered
                 </div>
-                <p style={{ color: 'var(--text-primary)', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
+                <p style={{ color: 'var(--text-secondary)', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
                   {latestLesson.what_we_covered}
                 </p>
               </div>
 
-              <hr className="divider" />
-
-              <div style={{ background: 'var(--accent-glow)', border: '1px solid rgba(200,169,110,0.2)', borderRadius: 6, padding: '16px 20px' }}>
-                <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--accent)', marginBottom: 10 }}>
+              <div style={{
+                background: 'var(--accent-glow)', border: '1px solid var(--accent-tag-border)',
+                borderRadius: 6, padding: '14px 18px',
+              }}>
+                <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--accent)', marginBottom: 8, fontFamily: 'sans-serif' }}>
                   Focus this week
                 </div>
                 <p style={{ color: 'var(--text-primary)', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
@@ -100,13 +116,13 @@ export default async function StudentPage({ params }: { params: Promise<{ token:
                 </p>
               </div>
 
-              {latestLesson.lesson_songs && latestLesson.lesson_songs.length > 0 && (
-                <div style={{ marginTop: 20 }}>
-                  <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: 10 }}>
+              {latestLesson.lesson_songs?.length > 0 && (
+                <div style={{ marginTop: 16 }}>
+                  <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 8, fontFamily: 'sans-serif' }}>
                     Songs this lesson
                   </div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                    {(latestLesson.lesson_songs as any[]).map((ls: any) => (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                    {latestLesson.lesson_songs.map((ls: any) => (
                       <span key={ls.song.id} className="tag tag-skill">
                         {ls.song.title}{ls.song.artist ? ` — ${ls.song.artist}` : ''}
                       </span>
@@ -117,33 +133,33 @@ export default async function StudentPage({ params }: { params: Promise<{ token:
             </div>
           </section>
         ) : (
-          <div style={{ color: 'var(--text-muted)', marginBottom: 48 }}>No lessons logged yet.</div>
+          <div className="card" style={{ padding: 24, color: 'var(--text-muted)', textAlign: 'center', marginBottom: 40, fontFamily: 'sans-serif' }}>
+            No lessons logged yet.
+          </div>
         )}
 
         {/* Repertoire */}
         {repertoire.length > 0 && (
-          <section className="fade-in" style={{ marginBottom: 48, animationDelay: '0.1s', opacity: 0 }}>
-            <h2 style={{ fontSize: 13, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--accent)', marginBottom: 20 }}>
+          <section className="fade-in" style={{ marginBottom: 40, animationDelay: '0.1s', opacity: 0 }}>
+            <h2 style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--accent)', marginBottom: 14, fontFamily: 'sans-serif' }}>
               Our Repertoire
             </h2>
             <div className="card" style={{ overflow: 'hidden' }}>
               {(repertoire as any[]).map((item: any, i: number) => (
                 <div key={item.song.id} style={{
-                  padding: '14px 20px',
+                  padding: '13px 18px',
                   borderBottom: i < repertoire.length - 1 ? '1px solid var(--border)' : 'none',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12,
                 }}>
-                  <div>
+                  <div style={{ minWidth: 0 }}>
                     <span style={{ color: 'var(--text-primary)' }}>{item.song.title}</span>
                     {item.song.artist && (
-                      <span style={{ color: 'var(--text-muted)', marginLeft: 10, fontSize: 14 }}>
+                      <span style={{ color: 'var(--text-muted)', marginLeft: 8, fontSize: 13 }}>
                         {item.song.artist}
                       </span>
                     )}
                   </div>
-                  <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>
+                  <span style={{ color: 'var(--text-muted)', fontSize: 12, fontFamily: 'sans-serif', flexShrink: 0 }}>
                     {format(new Date(item.first_worked_on + 'T12:00:00'), 'MMM yyyy')}
                   </span>
                 </div>
@@ -155,48 +171,34 @@ export default async function StudentPage({ params }: { params: Promise<{ token:
         {/* Past lessons */}
         {pastLessons.length > 0 && (
           <section className="fade-in" style={{ animationDelay: '0.2s', opacity: 0 }}>
-            <h2 style={{ fontSize: 13, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--accent)', marginBottom: 20 }}>
+            <h2 style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--accent)', marginBottom: 14, fontFamily: 'sans-serif' }}>
               Past Lessons
             </h2>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {pastLessons.map((lesson: any) => (
-                <details key={lesson.id} className="card" style={{ padding: 0, overflow: 'hidden' }}>
+                <details key={lesson.id} className="card" style={{ overflow: 'hidden' }}>
                   <summary style={{
-                    padding: '14px 20px',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    listStyle: 'none',
-                    color: 'var(--text-secondary)',
-                    userSelect: 'none',
+                    padding: '14px 18px', cursor: 'pointer',
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    listStyle: 'none', userSelect: 'none',
                   }}>
-                    <span style={{ color: 'var(--text-primary)' }}>
+                    <span style={{ color: 'var(--text-primary)', fontFamily: 'sans-serif', fontSize: 14 }}>
                       {format(new Date(lesson.lesson_date + 'T12:00:00'), 'MMMM d, yyyy')}
                     </span>
-                    <span style={{ fontSize: 13 }}>↓</span>
+                    <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>↓</span>
                   </summary>
-                  <div style={{ padding: '0 20px 20px', borderTop: '1px solid var(--border)' }}>
-                    <div style={{ paddingTop: 16, marginBottom: 14 }}>
-                      <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: 8 }}>
-                        What we covered
-                      </div>
-                      <p style={{ color: 'var(--text-secondary)', lineHeight: 1.7, whiteSpace: 'pre-wrap', fontSize: 15 }}>
-                        {lesson.what_we_covered}
-                      </p>
+                  <div style={{ padding: '0 18px 18px', borderTop: '1px solid var(--border)' }}>
+                    <div style={{ paddingTop: 14, marginBottom: 12 }}>
+                      <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 6, fontFamily: 'sans-serif' }}>What we covered</div>
+                      <p style={{ color: 'var(--text-secondary)', lineHeight: 1.7, whiteSpace: 'pre-wrap', fontSize: 14 }}>{lesson.what_we_covered}</p>
                     </div>
-                    <div>
-                      <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: 8 }}>
-                        Focus
-                      </div>
-                      <p style={{ color: 'var(--text-secondary)', lineHeight: 1.7, whiteSpace: 'pre-wrap', fontSize: 15 }}>
-                        {lesson.focus_for_week}
-                      </p>
+                    <div style={{ marginBottom: 12 }}>
+                      <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 6, fontFamily: 'sans-serif' }}>Focus</div>
+                      <p style={{ color: 'var(--text-secondary)', lineHeight: 1.7, whiteSpace: 'pre-wrap', fontSize: 14 }}>{lesson.focus_for_week}</p>
                     </div>
-                    {lesson.lesson_songs && lesson.lesson_songs.length > 0 && (
-                      <div style={{ marginTop: 14 }}>
-                        <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: 8 }}>
-                          Songs
-                        </div>
+                    {lesson.lesson_songs?.length > 0 && (
+                      <div>
+                        <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 6, fontFamily: 'sans-serif' }}>Songs</div>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                           {lesson.lesson_songs.map((ls: any) => (
                             <span key={ls.song.id} className="tag tag-skill" style={{ fontSize: 12 }}>

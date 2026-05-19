@@ -1,23 +1,17 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { ThemeToggle } from '@/lib/theme'
 
-type Props = { onBack: () => void }
-
-export default function SongsLibrary({ onBack }: Props) {
+export default function SongsLibrary({ onBack }: { onBack: () => void }) {
   const [songs, setSongs] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [expanded, setExpanded] = useState<string | null>(null)
 
-  async function load() {
-    const res = await fetch('/api/songs')
-    const data = await res.json()
-    setSongs(data)
-    setLoading(false)
-  }
-
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    fetch('/api/songs').then(r => r.json()).then(d => { setSongs(d); setLoading(false) })
+  }, [])
 
   const filtered = songs.filter(s =>
     s.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -27,30 +21,26 @@ export default function SongsLibrary({ onBack }: Props) {
   return (
     <div className="admin-sans" style={{ minHeight: '100vh', background: 'var(--bg)' }}>
       <nav style={{
-        borderBottom: '1px solid var(--border)', padding: '0 24px',
-        display: 'flex', alignItems: 'center', gap: 16, height: 56,
-        position: 'sticky', top: 0, background: 'var(--bg)', zIndex: 10,
+        borderBottom: '1px solid var(--border)', background: 'var(--bg-card)',
+        padding: '0 20px', display: 'flex', alignItems: 'center',
+        justifyContent: 'space-between', height: 54,
+        position: 'sticky', top: 0, zIndex: 10,
       }}>
-        <button onClick={onBack} className="btn btn-ghost btn-sm">← Students</button>
-        <span style={{ color: 'var(--text-muted)', fontSize: 14 }}>Song Library</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button onClick={onBack} className="btn btn-ghost btn-sm">← Students</button>
+          <span style={{ color: 'var(--text-muted)', fontSize: 14 }}>Song Library</span>
+        </div>
+        <ThemeToggle />
       </nav>
 
-      <main style={{ maxWidth: 760, margin: '0 auto', padding: '32px 24px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-          <h1 style={{ fontSize: 22, fontWeight: 600, color: 'var(--text-primary)' }}>
-            Song Library
-            <span style={{ color: 'var(--text-muted)', fontSize: 15, fontWeight: 400, marginLeft: 10 }}>
-              {songs.length} songs
-            </span>
+      <main style={{ maxWidth: 720, margin: '0 auto', padding: '24px 20px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)' }}>
+            Song Library <span style={{ color: 'var(--text-muted)', fontSize: 15, fontWeight: 400 }}>({songs.length})</span>
           </h1>
         </div>
 
-        <input
-          placeholder="Search by title or artist…"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          style={{ marginBottom: 20 }}
-        />
+        <input placeholder="Search by title or artist…" value={search} onChange={e => setSearch(e.target.value)} style={{ marginBottom: 16 }} />
 
         {loading ? (
           <div style={{ color: 'var(--text-muted)', fontSize: 14 }}>Loading…</div>
@@ -59,35 +49,31 @@ export default function SongsLibrary({ onBack }: Props) {
         ) : (
           <div className="card" style={{ overflow: 'hidden' }}>
             {filtered.map((song, i) => {
-              const studentCount = song.student_songs?.length || 0
-              const isExpanded = expanded === song.id
+              const count = song.student_songs?.length || 0
+              const isOpen = expanded === song.id
               return (
                 <div key={song.id} style={{ borderBottom: i < filtered.length - 1 ? '1px solid var(--border)' : 'none' }}>
                   <div
-                    onClick={() => setExpanded(isExpanded ? null : song.id)}
+                    onClick={() => count > 0 && setExpanded(isOpen ? null : song.id)}
                     style={{
-                      padding: '14px 20px',
-                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                      cursor: studentCount > 0 ? 'pointer' : 'default',
+                      padding: '13px 18px', display: 'flex', justifyContent: 'space-between',
+                      alignItems: 'center', cursor: count > 0 ? 'pointer' : 'default',
+                      transition: 'background 0.1s',
                     }}
+                    onMouseEnter={e => { if (count > 0) e.currentTarget.style.background = 'var(--bg-elevated)' }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
                   >
                     <div>
                       <span style={{ color: 'var(--text-primary)', fontSize: 15 }}>{song.title}</span>
-                      {song.artist && (
-                        <span style={{ color: 'var(--text-muted)', marginLeft: 10, fontSize: 14 }}>{song.artist}</span>
-                      )}
+                      {song.artist && <span style={{ color: 'var(--text-muted)', marginLeft: 10, fontSize: 14 }}>{song.artist}</span>}
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                      <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>
-                        {studentCount} student{studentCount !== 1 ? 's' : ''}
-                      </span>
-                      {studentCount > 0 && (
-                        <span style={{ color: 'var(--text-muted)', fontSize: 14 }}>{isExpanded ? '↑' : '↓'}</span>
-                      )}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>{count} student{count !== 1 ? 's' : ''}</span>
+                      {count > 0 && <span style={{ color: 'var(--text-muted)', fontSize: 14 }}>{isOpen ? '↑' : '↓'}</span>}
                     </div>
                   </div>
-                  {isExpanded && studentCount > 0 && (
-                    <div style={{ padding: '0 20px 16px', background: 'var(--bg)' }}>
+                  {isOpen && count > 0 && (
+                    <div style={{ padding: '0 18px 14px', background: 'var(--bg-elevated)' }}>
                       <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 8 }}>
                         Worked on with
                       </div>

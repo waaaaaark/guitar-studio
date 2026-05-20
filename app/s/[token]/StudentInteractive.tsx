@@ -5,6 +5,7 @@ import { BeltDisplay } from '@/lib/BeltDisplay'
 import PracticeTimer from '@/lib/PracticeTimer'
 import { type Belt, type StudentProfile, STRIPE_XP } from '@/lib/supabase'
 import CurriculumChecklist from './CurriculumChecklist'
+import HowItWorksStudent from './HowItWorksStudent'
 import StudentResources from './StudentResources'
 import PastLessons from './PastLessons'
 import RepertoireList from './RepertoireList'
@@ -42,6 +43,7 @@ export default function StudentInteractive({ token, student: initialStudent, les
 
   return (
     <div>
+      <HowItWorksStudent profile={student.student_profile} beltActive={beltActive} />
       {/* Tab bar */}
       <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', marginBottom: 24 }}>
         {tabs.map(tab => (

@@ -72,17 +72,14 @@ export default function StudentDetail({ student: initialStudent, onBack, onStude
     load()
   }
 
-  async function sendTestEmail() {
+  async function sendOnboardingEmail() {
     if (!student.email) { toast('No email on file for this student', 'error'); return }
-    // Find the most recent lesson to use as test
-    if (!data?.lessons?.length) { toast('No lessons to send — log a lesson first', 'error'); return }
-    const latestLesson = data.lessons[0]
-    const res = await fetch('/api/email', {
+    const res = await fetch('/api/onboarding', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ lesson_id: latestLesson.id }),
+      body: JSON.stringify({ student_id: student.id }),
     })
-    if (res.ok) toast('Test email sent to ' + student.email)
+    if (res.ok) toast('Onboarding email sent to ' + student.email)
     else { const d = await res.json(); toast('Failed: ' + (d.error || 'Unknown error'), 'error') }
   }
 
@@ -177,8 +174,8 @@ export default function StudentDetail({ student: initialStudent, onBack, onStude
               {exporting ? 'Exporting…' : '↓ Export PDF'}
             </button>
             {student.email && (
-              <button className="btn btn-ghost btn-sm" onClick={sendTestEmail} title={`Send test email to ${student.email}`}>
-                ✉ Test Email
+              <button className="btn btn-ghost btn-sm" onClick={sendOnboardingEmail} title={`Send onboarding email to ${student.email}`}>
+                ✉ Send Welcome
               </button>
             )}
             <button className="btn btn-danger btn-sm" onClick={deleteStudent}>Delete</button>

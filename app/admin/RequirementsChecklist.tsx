@@ -192,19 +192,29 @@ export default function RequirementsChecklist({ student, onStudentUpdated }: Pro
                     )}
                   </div>
 
-                  {/* Note button */}
+                  {/* Note + N/A buttons */}
                   {noteFor !== req.id && (
-                    <button
-                      onClick={() => { setNoteFor(req.id); setNoteText(req.note || '') }}
-                      style={{
-                        background: 'none', border: 'none', cursor: 'pointer',
-                        color: req.note ? 'var(--accent)' : 'var(--text-muted)',
-                        fontSize: 14, padding: '0 4px', flexShrink: 0,
-                      }}
-                      title={req.note ? 'Edit note' : 'Add note'}
-                    >
-                      📝
-                    </button>
+                    <div style={{ display: 'flex', gap: 2, flexShrink: 0 }}>
+                      <button
+                        onClick={() => { setNoteFor(req.id); setNoteText(req.note || '') }}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: req.note ? 'var(--accent)' : 'var(--text-muted)', fontSize: 14, padding: '0 4px' }}
+                        title={req.note ? 'Edit note' : 'Add note'}
+                      >📝</button>
+                      {!req.completed && (
+                        <button
+                          onClick={async () => {
+                            await fetch('/api/requirements/custom', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ student_id: student.id, requirement_id: req.id, action: 'hide' }),
+                            })
+                            load()
+                          }}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 11, padding: '0 4px', fontFamily: 'inherit' }}
+                          title="Mark as not applicable for this student"
+                        >N/A</button>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>

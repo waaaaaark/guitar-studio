@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { ThemeToggle } from '@/lib/theme'
+import ScreenshotImportModal from './ScreenshotImportModal'
 import { useToast } from '@/lib/toast'
 
 export default function SongsLibrary({ onBack }: { onBack: () => void }) {
@@ -12,6 +13,7 @@ export default function SongsLibrary({ onBack }: { onBack: () => void }) {
   const [search, setSearch] = useState('')
   const [expanded, setExpanded] = useState<string | null>(null)
   const [showAddModal, setShowAddModal] = useState(false)
+  const [showScreenshotImport, setShowScreenshotImport] = useState(false)
   const [addingTagFor, setAddingTagFor] = useState<string | null>(null)
   const [tagInput, setTagInput] = useState('')
   const [tagSuggestions, setTagSuggestions] = useState<string[]>([])
@@ -90,7 +92,10 @@ export default function SongsLibrary({ onBack }: { onBack: () => void }) {
           <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)' }}>
             Song Library <span style={{ color: 'var(--text-muted)', fontSize: 15, fontWeight: 400 }}>({songs.length})</span>
           </h1>
-          <button className="btn btn-primary btn-sm" onClick={() => setShowAddModal(true)}>+ Add Song</button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn btn-ghost btn-sm" onClick={() => setShowScreenshotImport(true)}>📱 Import from UG</button>
+            <button className="btn btn-primary btn-sm" onClick={() => setShowAddModal(true)}>+ Add Song</button>
+          </div>
         </div>
 
         <input
@@ -217,6 +222,12 @@ export default function SongsLibrary({ onBack }: { onBack: () => void }) {
         )}
       </main>
 
+      {showScreenshotImport && (
+        <ScreenshotImportModal
+          onClose={() => setShowScreenshotImport(false)}
+          onImported={() => { setShowScreenshotImport(false); load() }}
+        />
+      )}
       {showAddModal && (
         <AddSongModal
           allTags={allTags}

@@ -120,25 +120,25 @@ export default function AdminPage() {
       {/* Nav */}
       <nav style={{
         borderBottom: '1px solid var(--border)', background: 'var(--bg-card)',
-        padding: '0 20px', display: 'flex', alignItems: 'center',
+        padding: '0 12px', display: 'flex', alignItems: 'center',
         justifyContent: 'space-between', height: 54,
         position: 'sticky', top: 0, zIndex: 10,
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-          <span style={{ color: 'var(--accent)', fontWeight: 700, fontSize: 15 }}>🎸 Studio</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <span className="hide-mobile" style={{ color: 'var(--accent)', fontWeight: 700, fontSize: 14, marginRight: 8, whiteSpace: 'nowrap' }}>🎸</span>
           <div style={{ display: 'flex' }}>
             {(['Students', 'Songs', 'Tips', 'Resources'] as const).map(tab => (
               <button key={tab} onClick={() => setView(tab === 'Students' ? 'roster' : tab === 'Songs' ? 'songs' : tab === 'Tips' ? 'tips' : 'resources')} style={{
                 background: 'none', border: 'none', cursor: 'pointer',
-                padding: '4px 12px', fontSize: 14, fontFamily: 'inherit',
+                padding: '4px 8px', fontSize: 13, fontFamily: 'inherit',
                 color: (tab === 'Students' ? currentView === 'roster' : tab === 'Songs' ? currentView === 'songs' : tab === 'Tips' ? currentView === 'tips' : currentView === 'resources') ? 'var(--text-primary)' : 'var(--text-muted)',
                 borderBottom: (tab === 'Students' ? currentView === 'roster' : tab === 'Songs' ? currentView === 'songs' : tab === 'Tips' ? currentView === 'tips' : currentView === 'resources') ? '2px solid var(--accent)' : '2px solid transparent',
-                marginBottom: -1, paddingBottom: 6,
+                marginBottom: -1, paddingBottom: 6, whiteSpace: 'nowrap',
               }}>{tab}</button>
             ))}
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <ThemeToggle />
           <button onClick={logout} className="btn btn-ghost btn-sm hide-mobile">Sign out</button>
         </div>
@@ -290,23 +290,22 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* Test data controls */}
-        <div style={{ marginTop: 40, paddingTop: 20, borderTop: '1px solid var(--border)' }}>
-          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-            Developer Tools
+        {/* Developer Tools — hidden for now */}
+        {false && (
+          <div style={{ marginTop: 40, paddingTop: 20, borderTop: '1px solid var(--border)' }}>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {!hasTestData ? (
+                <button className="btn btn-ghost btn-sm" onClick={generateTestData} disabled={testLoading}>
+                  {testLoading ? 'Generating…' : '⚗ Generate Test Data'}
+                </button>
+              ) : (
+                <button className="btn btn-danger btn-sm" onClick={removeTestData} disabled={testLoading}>
+                  {testLoading ? 'Removing…' : '✕ Remove Test Data'}
+                </button>
+              )}
+            </div>
           </div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {!hasTestData ? (
-              <button className="btn btn-ghost btn-sm" onClick={generateTestData} disabled={testLoading}>
-                {testLoading ? 'Generating…' : '⚗ Generate Test Data'}
-              </button>
-            ) : (
-              <button className="btn btn-danger btn-sm" onClick={removeTestData} disabled={testLoading}>
-                {testLoading ? 'Removing…' : '✕ Remove Test Data'}
-              </button>
-            )}
-          </div>
-        </div>
+        )}
       </main>
 
       {showAddModal && <StudentModal onClose={() => setShowAddModal(false)} onSaved={() => { setShowAddModal(false); loadStudents() }} />}

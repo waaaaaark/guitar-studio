@@ -5,10 +5,9 @@ import { format } from 'date-fns'
 type Student = {
   name: string
   email?: string | null
-  skill_level: string
-  lesson_frequency: string
   start_date: string
   lesson_count: number
+  skill_level: string
 }
 
 type Song = { title: string; artist?: string | null }
@@ -18,201 +17,222 @@ type Lesson = {
   focus_for_week: string
   lesson_songs?: { song: Song }[]
 }
-type RepertoireItem = { song: Song; first_worked_on: string }
+type RepertoireItem = {
+  song: Song
+  first_worked_on: string
+  mastery_status?: string
+}
+
+export type ExportMode = 'songs' | 'lessons' | 'both'
+
+// ── Shared helpers ──────────────────────────────────────────────────────────
+
+function pageHeader(doc: any, studentName: string, pageLabel: string, W: number, MARGIN: number) {
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(16)
+  doc.setTextColor(26, 24, 20)
+  doc.text(studentName, MARGIN, 38)
+
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(9)
+  doc.setTextColor(140, 130, 120)
+  doc.text(pageLabel, MARGIN, 52)
+  doc.text(`Exported ${format(new Date(), 'MMM d, yyyy')}`, W - MARGIN, 52, { align: 'right' })
+
+  doc.setDrawColor(220, 215, 208)
+  doc.setLineWidth(0.5)
+  doc.line(MARGIN, 58, W - MARGIN, 58)
+
+  return 70 // starting Y after header
+}
+
+function addPageNumbers(doc: any, W: number, H: number, MARGIN: number) {
+  const total = doc.getNumberOfPages()
+  for (let i = 1; i <= total; i++) {
+    doc.setPage(i)
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(8)
+    doc.setTextColor(180, 170, 160)
+    doc.text(`${i} / ${total}`, W - MARGIN, H - 18, { align: 'right' })
+    doc.text('Guitar Studio', MARGIN, H - 18)
+  }
+}
+
+// ── Song list export ────────────────────────────────────────────────────────
+
+function buildSongList(doc: any, student: Student, repertoire: RepertoireItem[]) {
+  const W = 612, H = 792, MARGIN = 48
+  const COL_W = (W - MARGIN * 2 - 12) / 2
+  let y = pageHeader(doc, student.name, `Song Repertoire · ${repertoire.length} songs`, W, MARGIN)
+
+  // Two columns
+  const col1X = MARGIN
+  const col2X = MARGIN + COL_W + 12
+
+  doc.setFontSize(8)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(140, 130, 120)
+  doc.text('SONG / ARTIST', col1X, y)
+  doc.text('SONG / ARTIST', col2X, y)
+  doc.text('DATE', col1X + COL_W - 30, y, { align: 'right' })
+  doc.text('DATE', col2X + COL_W - 30, y, { align: 'right' })
+  y += 6
+  doc.setDrawColor(220, 215, 208)
+  doc.setLineWidth(0.3)
+  doc.line(col1X, y, col1X + COL_W - 30, y)
+  doc.line(col2X, y, col2X + COL_W - 30, y)
+  y += 10
+
+  const ROW_H = 22
+  repertoire.forEach((item, i) => {
+    const col = i % 2
+    const x = col === 0 ? col1X : col2X
+    if (col === 0 && i > 0) y += ROW_H
+    if (y > H - MARGIN - ROW_H) {
+      doc.addPage()
+      y = pageHeader(doc, student.name, 'Song Repertoire (continued)', W, MARGIN)
+      y += 10
+    }
+
+    const mastered = item.mastery_status === 'mastered'
+    doc.setFont('helvetica', mastered ? 'bold' : 'normal')
+    doc.setFontSize(9)
+    doc.setTextColor(mastered ? 60 : 40, mastered ? 100 : 40, mastered ? 60 : 40)
+
+    const titleMaxW = COL_W - 46
+    const title = doc.splitTextToSize(item.song.title, titleMaxW)[0]
+    doc.text((mastered ? '✓ ' : '') + title, x, y)
+
+    if (item.song.artist) {
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(8)
+      doc.setTextColor(140, 130, 120)
+      doc.text(item.song.artist, x + 8, y + 9)
+    }
+
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(8)
+    doc.setTextColor(160, 150, 140)
+    doc.text(
+      format(new Date(item.first_worked_on + 'T12:00:00'), 'MMM yy'),
+      x + COL_W - 30, y, { align: 'right' }
+    )
+
+    if (col === 1 || i === repertoire.length - 1) {
+      // separator line
+      doc.setDrawColor(235, 232, 226)
+      doc.setLineWidth(0.2)
+      doc.line(col1X, y + 14, col1X + COL_W - 30, y + 14)
+      doc.line(col2X, y + 14, col2X + COL_W - 30, y + 14)
+    }
+  })
+}
+
+// ── Lesson notes export ─────────────────────────────────────────────────────
+
+function buildLessonNotes(doc: any, student: Student, lessons: Lesson[], isNewDoc = true) {
+  const W = 612, H = 792, MARGIN = 48, LINE_H = 13
+  let y = pageHeader(doc, student.name, `Lesson Notes · ${lessons.length} lessons`, W, MARGIN)
+
+  function checkSpace(needed: number) {
+    if (y + needed > H - MARGIN) {
+      doc.addPage()
+      y = pageHeader(doc, student.name, 'Lesson Notes (continued)', W, MARGIN)
+    }
+  }
+
+  function wrapText(text: string, x: number, maxW: number, lineH: number) {
+    const lines = doc.splitTextToSize(text, maxW)
+    for (const line of lines) {
+      checkSpace(lineH)
+      doc.text(line, x, y)
+      y += lineH
+    }
+  }
+
+  lessons.forEach((lesson, i) => {
+    checkSpace(60)
+
+    // Date header
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(10)
+    doc.setTextColor(26, 24, 20)
+    doc.text(format(new Date(lesson.lesson_date + 'T12:00:00'), 'MMMM d, yyyy'), MARGIN, y)
+    y += 14
+
+    // What we covered
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(8)
+    doc.setTextColor(140, 130, 120)
+    doc.text('COVERED', MARGIN, y)
+    y += 9
+    doc.setTextColor(50, 45, 40)
+    doc.setFontSize(9)
+    wrapText(lesson.what_we_covered, MARGIN + 6, W - MARGIN * 2 - 6, LINE_H)
+    y += 2
+
+    // Focus
+    checkSpace(30)
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(8)
+    doc.setTextColor(140, 130, 120)
+    doc.text('FOCUS', MARGIN, y)
+    y += 9
+    doc.setTextColor(50, 45, 40)
+    doc.setFontSize(9)
+    wrapText(lesson.focus_for_week, MARGIN + 6, W - MARGIN * 2 - 6, LINE_H)
+    y += 2
+
+    // Songs
+    const songs = lesson.lesson_songs?.map(ls => ls.song) || []
+    if (songs.length > 0) {
+      checkSpace(16)
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(8)
+      doc.setTextColor(140, 130, 120)
+      doc.text('SONGS', MARGIN, y)
+      y += 9
+      doc.setTextColor(80, 120, 80)
+      const songStr = songs.map(s => s.artist ? `${s.title} — ${s.artist}` : s.title).join('  ·  ')
+      wrapText(songStr, MARGIN + 6, W - MARGIN * 2 - 6, LINE_H)
+    }
+
+    // Separator
+    if (i < lessons.length - 1) {
+      y += 6
+      checkSpace(8)
+      doc.setDrawColor(225, 220, 212)
+      doc.setLineWidth(0.3)
+      doc.line(MARGIN, y, W - MARGIN, y)
+      y += 10
+    }
+  })
+}
+
+// ── Main export function ────────────────────────────────────────────────────
 
 export async function exportStudentPDF(
   student: Student,
   lessons: Lesson[],
-  repertoire: RepertoireItem[]
+  repertoire: RepertoireItem[],
+  mode: ExportMode = 'both'
 ) {
   const { jsPDF } = await import('jspdf')
+  const W = 612, H = 792, MARGIN = 48
+
   const doc = new jsPDF({ unit: 'pt', format: 'letter' })
 
-  const PAGE_W = 612
-  const PAGE_H = 792
-  const MARGIN = 52
-  const CONTENT_W = PAGE_W - MARGIN * 2
-  const LINE_H = 16
-
-  // Colors
-  const C_BG = '#f7f5f0'
-  const C_ACCENT = '#8b6914'
-  const C_TEXT = '#1a1814'
-  const C_MUTED = '#8a8278'
-  const C_BORDER = '#e2ddd5'
-  const C_HIGHLIGHT = '#fdf8ee'
-
-  let y = 0
-
-  function newPage() {
-    doc.addPage()
-    y = MARGIN
-    // subtle top border
-    doc.setDrawColor(C_BORDER)
-    doc.setLineWidth(0.5)
-    doc.line(MARGIN, 44, PAGE_W - MARGIN, 44)
+  if (mode === 'songs' || mode === 'both') {
+    buildSongList(doc, student, repertoire)
   }
 
-  function checkSpace(needed: number) {
-    if (y + needed > PAGE_H - MARGIN) newPage()
+  if (mode === 'lessons' || mode === 'both') {
+    if (mode === 'both') doc.addPage()
+    buildLessonNotes(doc, student, lessons, mode === 'lessons')
   }
 
-  function setFont(style: 'normal' | 'bold' | 'italic', size: number, color = C_TEXT) {
-    doc.setFont('helvetica', style)
-    doc.setFontSize(size)
-    doc.setTextColor(color)
-  }
+  addPageNumbers(doc, W, H, MARGIN)
 
-  function drawWrappedText(text: string, x: number, startY: number, maxW: number, lineH: number): number {
-    const lines = doc.splitTextToSize(text, maxW)
-    for (const line of lines) {
-      checkSpace(lineH + 4)
-      doc.text(line, x, y)
-      y += lineH
-    }
-    return y
-  }
-
-  function label(text: string) {
-    setFont('normal', 8, C_MUTED)
-    doc.text(text.toUpperCase(), MARGIN, y)
-    y += 14
-  }
-
-  // ── Cover / Header ──────────────────────────────────────
-  // Warm bg strip
-  doc.setFillColor(C_BG)
-  doc.rect(0, 0, PAGE_W, 120, 'F')
-  doc.setDrawColor(C_BORDER)
-  doc.setLineWidth(0.5)
-  doc.line(0, 120, PAGE_W, 120)
-
-  // Studio label
-  setFont('normal', 9, C_MUTED)
-  doc.text('GUITAR STUDIO', MARGIN, 42)
-
-  // Student name
-  setFont('bold', 26, C_TEXT)
-  doc.text(student.name, MARGIN, 72)
-
-  // Meta line
-  setFont('normal', 10, C_MUTED)
-  const tenure = format(new Date(student.start_date + 'T12:00:00'), 'MMMM yyyy')
-  const metaParts = [
-    `Student since ${tenure}`,
-    `${student.lesson_count} lessons`,
-    student.skill_level,
-    student.lesson_frequency,
-  ]
-  doc.text(metaParts.join('  ·  '), MARGIN, 90)
-
-  // Export date
-  setFont('normal', 8, C_MUTED)
-  doc.text(`Exported ${format(new Date(), 'MMMM d, yyyy')}`, PAGE_W - MARGIN, 42, { align: 'right' })
-
-  y = 148
-
-  // ── Repertoire section ──────────────────────────────────
-  if (repertoire.length > 0) {
-    checkSpace(40)
-    setFont('bold', 11, C_ACCENT)
-    doc.text('REPERTOIRE', MARGIN, y)
-    y += 20
-
-    const cols = 2
-    const colW = CONTENT_W / cols
-    repertoire.forEach((item, i) => {
-      if (i % cols === 0) checkSpace(LINE_H + 4)
-      const col = i % cols
-      const x = MARGIN + col * colW
-      if (i % cols === 0 && i > 0) y += 0 // already moved
-
-      setFont('normal', 10, C_TEXT)
-      doc.text(item.song.title, x, y)
-      if (item.song.artist) {
-        setFont('normal', 9, C_MUTED)
-        const titleW = doc.getTextWidth(item.song.title) + 5
-        doc.text(`— ${item.song.artist}`, x + titleW, y)
-      }
-      if (col === cols - 1 || i === repertoire.length - 1) y += LINE_H
-    })
-
-    y += 12
-    doc.setDrawColor(C_BORDER)
-    doc.setLineWidth(0.5)
-    doc.line(MARGIN, y, PAGE_W - MARGIN, y)
-    y += 20
-  }
-
-  // ── Lessons ─────────────────────────────────────────────
-  if (lessons.length > 0) {
-    checkSpace(40)
-    setFont('bold', 11, C_ACCENT)
-    doc.text('LESSON HISTORY', MARGIN, y)
-    y += 22
-
-    for (const lesson of lessons) {
-      checkSpace(80)
-
-      // Date header
-      setFont('bold', 11, C_TEXT)
-      doc.text(format(new Date(lesson.lesson_date + 'T12:00:00'), 'MMMM d, yyyy'), MARGIN, y)
-      y += 18
-
-      // What we covered
-      label('What we covered')
-      setFont('normal', 10, C_TEXT)
-      drawWrappedText(lesson.what_we_covered, MARGIN, y, CONTENT_W, LINE_H)
-      y += 6
-
-      // Focus box
-      checkSpace(50)
-      const focusLines = doc.splitTextToSize(lesson.focus_for_week, CONTENT_W - 24)
-      const focusH = focusLines.length * LINE_H + 24
-      doc.setFillColor(C_HIGHLIGHT)
-      doc.setDrawColor('#e8d9b0')
-      doc.setLineWidth(0.5)
-      doc.roundedRect(MARGIN, y, CONTENT_W, focusH, 4, 4, 'FD')
-
-      setFont('normal', 8, C_ACCENT)
-      doc.text('FOCUS THIS WEEK', MARGIN + 12, y + 14)
-
-      setFont('normal', 10, C_TEXT)
-      let fy = y + 26
-      for (const line of focusLines) {
-        doc.text(line, MARGIN + 12, fy)
-        fy += LINE_H
-      }
-      y += focusH + 8
-
-      // Songs
-      const songs = lesson.lesson_songs?.map(ls => ls.song) || []
-      if (songs.length > 0) {
-        label('Songs')
-        setFont('normal', 10, C_TEXT)
-        const songStr = songs.map(s => s.artist ? `${s.title} — ${s.artist}` : s.title).join('  ·  ')
-        drawWrappedText(songStr, MARGIN, y, CONTENT_W, LINE_H)
-        y += 4
-      }
-
-      // Divider between lessons
-      y += 10
-      doc.setDrawColor(C_BORDER)
-      doc.setLineWidth(0.5)
-      doc.line(MARGIN, y, PAGE_W - MARGIN, y)
-      y += 18
-    }
-  }
-
-  // Page numbers
-  const totalPages = doc.getNumberOfPages()
-  for (let i = 1; i <= totalPages; i++) {
-    doc.setPage(i)
-    setFont('normal', 8, C_MUTED)
-    doc.text(`${i} / ${totalPages}`, PAGE_W - MARGIN, PAGE_H - 28, { align: 'right' })
-    doc.text('Guitar Studio', MARGIN, PAGE_H - 28)
-  }
-
-  const filename = `${student.name.replace(/\s+/g, '-')}-lesson-history.pdf`
-  doc.save(filename)
+  const label = mode === 'songs' ? 'Songs' : mode === 'lessons' ? 'Lessons' : 'Full-Export'
+  doc.save(`${student.name.replace(/\s+/g, '-')}-${label}.pdf`)
 }

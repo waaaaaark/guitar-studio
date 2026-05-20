@@ -18,18 +18,13 @@ type Props = {
   stripeThreshold: number
 }
 
+type TabKey = 'belt' | 'lessons' | 'practice' | 'resources'
+
 export default function StudentInteractive({ token, student: initialStudent, lessons, repertoire, stripeThreshold }: Props) {
   const [student, setStudent] = useState(initialStudent)
   const [lastXP, setLastXP] = useState<number | null>(null)
-
   const beltActive = student.belt_system_active
-  const tabs = [
-    ...(beltActive ? [{ key: 'belt', label: '🥋 Belt' }] : []),
-    { key: 'lessons', label: '📓 Lessons' },
-    { key: 'resources', label: '📎 Resources' },
-  ] as const
 
-  type TabKey = 'belt' | 'lessons' | 'resources'
   const [activeTab, setActiveTab] = useState<TabKey>(beltActive ? 'belt' : 'lessons')
 
   const mastered = repertoire.filter((r: any) => r.mastery_status === 'mastered')
@@ -37,24 +32,33 @@ export default function StudentInteractive({ token, student: initialStudent, les
   const latestLesson = lessons[0]
   const pastLessons = lessons.slice(1)
 
+  // Tab definitions — drop icons, keep short labels
+  const tabs: { key: TabKey; label: string }[] = [
+    ...(beltActive ? [{ key: 'belt' as TabKey, label: 'Belt' }] : []),
+    { key: 'lessons', label: 'Lessons' },
+    { key: 'practice', label: 'Practice' },
+    { key: 'resources', label: 'Resources' },
+  ]
+
   return (
-    <div style={{ marginBottom: 32 }}>
+    <div>
       {/* Tab bar */}
-      <div style={{ display: 'flex', gap: 0, marginBottom: 20, borderBottom: '1px solid var(--border)' }}>
+      <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', marginBottom: 24 }}>
         {tabs.map(tab => (
-          <button key={tab.key} onClick={() => setActiveTab(tab.key as TabKey)} style={{
+          <button key={tab.key} onClick={() => setActiveTab(tab.key)} style={{
             background: 'none', border: 'none', cursor: 'pointer',
-            padding: '8px 16px', fontSize: 13, fontFamily: 'sans-serif',
+            padding: '9px 14px', fontSize: 13, fontFamily: 'sans-serif',
             color: activeTab === tab.key ? 'var(--text-primary)' : 'var(--text-muted)',
             borderBottom: activeTab === tab.key ? '2px solid var(--accent)' : '2px solid transparent',
             marginBottom: -1, fontWeight: activeTab === tab.key ? 600 : 400,
+            whiteSpace: 'nowrap', flex: 1, textAlign: 'center',
           }}>{tab.label}</button>
         ))}
       </div>
 
-      {/* ── Belt tab ── */}
+      {/* ── BELT TAB ── */}
       {activeTab === 'belt' && beltActive && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
           <BeltDisplay
             belt={student.belt as Belt}
             stripes={student.belt_stripes}
@@ -65,80 +69,8 @@ export default function StudentInteractive({ token, student: initialStudent, les
             stripeEligible={student.stripe_eligible}
             beltEligible={student.belt_eligible}
           />
-
-          {/* Practice timer inside belt tab */}
           <div>
-            <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--accent)', marginBottom: 12, fontFamily: 'sans-serif' }}>
-              Log Practice
-            </div>
-            <PracticeTimer
-              token={token}
-              onSessionLogged={(xp, mins) => {
-                setStudent((s: any) => ({
-                  ...s,
-                  total_xp: s.total_xp + xp,
-                  current_stripe_xp: s.current_stripe_xp + xp,
-                  total_practice_minutes: s.total_practice_minutes + mins,
-                }))
-                setLastXP(xp)
-              }}
-            />
-            {lastXP !== null && lastXP > 0 && (
-              <div style={{ marginTop: 8, fontSize: 13, color: 'var(--accent)', fontFamily: 'sans-serif', textAlign: 'center' }}>
-                +{lastXP} XP added to your belt progress!
-              </div>
-            )}
-          </div>
-
-          {/* Songs mastery */}
-          <div>
-            <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--accent)', marginBottom: 12, fontFamily: 'sans-serif' }}>
-              Song Mastery
-            </div>
-            {mastered.length > 0 && (
-              <div style={{ marginBottom: 14 }}>
-                <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--green)', marginBottom: 8, fontFamily: 'sans-serif' }}>
-                  ✓ Mastered ({mastered.length})
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                  {mastered.map((item: any) => (
-                    <div key={item.song.id} style={{
-                      padding: '9px 14px', borderRadius: 8,
-                      background: 'rgba(61,122,82,0.08)', border: '1px solid rgba(61,122,82,0.2)',
-                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                    }}>
-                      <div>
-                        <span style={{ color: 'var(--text-primary)', fontSize: 14 }}>{item.song.title}</span>
-                        {item.song.artist && <span style={{ color: 'var(--text-muted)', fontSize: 13, marginLeft: 8 }}>{item.song.artist}</span>}
-                      </div>
-                      <span style={{ fontSize: 11, color: 'var(--green)', fontFamily: 'sans-serif' }}>+100 XP</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-            {working.length > 0 && (
-              <div>
-                <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 8, fontFamily: 'sans-serif' }}>
-                  Working on ({working.length})
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                  {working.map((item: any) => (
-                    <SongMasteryRow key={item.song.id} item={item} token={token} />
-                  ))}
-                </div>
-              </div>
-            )}
-            {repertoire.length === 0 && (
-              <div style={{ color: 'var(--text-muted)', fontSize: 14, fontFamily: 'sans-serif', textAlign: 'center', padding: '16px 0' }}>
-                No songs yet — your teacher will add songs as you learn them.
-              </div>
-            )}
-          </div>
-
-          {/* Curriculum checklist */}
-          <div>
-            <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--accent)', marginBottom: 12, fontFamily: 'sans-serif' }}>
+            <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--accent)', marginBottom: 14, fontFamily: 'sans-serif' }}>
               What you're working toward
             </div>
             <CurriculumChecklist
@@ -151,21 +83,21 @@ export default function StudentInteractive({ token, student: initialStudent, les
         </div>
       )}
 
-      {/* ── Lessons tab ── */}
+      {/* ── LESSONS TAB ── */}
       {activeTab === 'lessons' && (
         <div>
-          {/* Stats row */}
+          {/* Stats */}
           <div style={{ display: 'flex', gap: 10, marginBottom: 24, flexWrap: 'wrap' }}>
             {[
               { label: 'Student since', value: format(new Date(student.start_date + 'T12:00:00'), 'MMM yyyy') },
               { label: 'Lessons', value: student.lesson_count },
-              { label: 'Practice time', value: `${Math.round(student.total_practice_minutes / 60 * 10) / 10}h` },
+              { label: 'Practice', value: `${Math.round(student.total_practice_minutes / 60 * 10) / 10}h` },
             ].map(stat => (
-              <div key={stat.label} className="card" style={{ padding: '12px 16px', flex: '1 1 90px' }}>
+              <div key={stat.label} className="card" style={{ padding: '11px 14px', flex: '1 1 90px' }}>
                 <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: 'sans-serif' }}>
                   {stat.label}
                 </div>
-                <div style={{ fontSize: 15, color: 'var(--text-primary)', marginTop: 4, fontFamily: 'sans-serif' }}>
+                <div style={{ fontSize: 15, color: 'var(--text-primary)', marginTop: 3, fontFamily: 'sans-serif' }}>
                   {stat.value}
                 </div>
               </div>
@@ -217,7 +149,7 @@ export default function StudentInteractive({ token, student: initialStudent, les
               </div>
             </div>
           ) : (
-            <div className="card" style={{ padding: 24, color: 'var(--text-muted)', textAlign: 'center', marginBottom: 28, fontFamily: 'sans-serif' }}>
+            <div className="card" style={{ padding: 20, color: 'var(--text-muted)', textAlign: 'center', marginBottom: 28, fontFamily: 'sans-serif' }}>
               No lessons logged yet.
             </div>
           )}
@@ -249,7 +181,85 @@ export default function StudentInteractive({ token, student: initialStudent, les
         </div>
       )}
 
-      {/* ── Resources tab ── */}
+      {/* ── PRACTICE TAB ── */}
+      {activeTab === 'practice' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+          {/* Timer */}
+          <div>
+            <h2 style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--accent)', marginBottom: 14, fontFamily: 'sans-serif' }}>
+              Log Practice
+            </h2>
+            <PracticeTimer
+              token={token}
+              onSessionLogged={(xp, mins) => {
+                setStudent((s: any) => ({
+                  ...s,
+                  total_xp: s.total_xp + xp,
+                  current_stripe_xp: s.current_stripe_xp + xp,
+                  total_practice_minutes: s.total_practice_minutes + mins,
+                }))
+                setLastXP(xp)
+              }}
+            />
+            {lastXP !== null && lastXP > 0 && beltActive && (
+              <div style={{ marginTop: 8, fontSize: 13, color: 'var(--accent)', fontFamily: 'sans-serif', textAlign: 'center' }}>
+                +{lastXP} XP added to your belt progress!
+              </div>
+            )}
+          </div>
+
+          {/* Song mastery */}
+          <div>
+            <h2 style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--accent)', marginBottom: 14, fontFamily: 'sans-serif' }}>
+              Song Mastery
+            </h2>
+
+            {mastered.length > 0 && (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--green)', marginBottom: 8, fontFamily: 'sans-serif' }}>
+                  Mastered ({mastered.length})
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                  {mastered.map((item: any) => (
+                    <div key={item.song.id} style={{
+                      padding: '9px 14px', borderRadius: 8,
+                      background: 'rgba(61,122,82,0.08)', border: '1px solid rgba(61,122,82,0.2)',
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    }}>
+                      <div>
+                        <span style={{ color: 'var(--text-primary)', fontSize: 14 }}>{item.song.title}</span>
+                        {item.song.artist && <span style={{ color: 'var(--text-muted)', fontSize: 13, marginLeft: 8 }}>{item.song.artist}</span>}
+                      </div>
+                      {beltActive && <span style={{ fontSize: 11, color: 'var(--green)', fontFamily: 'sans-serif' }}>+100 XP</span>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {working.length > 0 && (
+              <div>
+                <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 8, fontFamily: 'sans-serif' }}>
+                  Working on ({working.length})
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                  {working.map((item: any) => (
+                    <SongMasteryRow key={item.song.id} item={item} token={token} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {repertoire.length === 0 && (
+              <div style={{ color: 'var(--text-muted)', fontSize: 14, fontFamily: 'sans-serif', textAlign: 'center', padding: '16px 0' }}>
+                No songs yet — your teacher will add songs as you learn them.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── RESOURCES TAB ── */}
       {activeTab === 'resources' && (
         <StudentResources token={token} showEmpty />
       )}

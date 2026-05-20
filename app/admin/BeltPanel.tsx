@@ -111,11 +111,13 @@ export default function BeltPanel({ student, repertoire, onStudentUpdated }: Pro
         date: new Date(),
       })
       toast('Certificate downloaded!')
-    } catch (e) {
-      toast('Certificate generation failed', 'error')
+      setShowCertModal(false)
+    } catch (e: any) {
+      console.error('Certificate generation error:', e)
+      toast('Error: ' + (e?.message || 'Unknown error'), 'error')
+    } finally {
+      setCertGenerating(false)
     }
-    setCertGenerating(false)
-    setShowCertModal(false)
   }
 
   async function placeBelt() {

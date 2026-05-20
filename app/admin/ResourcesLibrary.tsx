@@ -3,7 +3,13 @@
 import { useState, useEffect, useRef } from 'react'
 import { ThemeToggle } from '@/lib/theme'
 import { useToast } from '@/lib/toast'
-import { RESOURCE_TYPES, RESOURCE_ICONS, type ResourceType } from '@/lib/supabase'
+// Inline to avoid any proxy issues
+const RESOURCE_TYPES = ['PDF', 'Video', 'Article', 'Chord Chart', 'Exercise', 'Backing Track', 'Other'] as const
+type ResourceType = typeof RESOURCE_TYPES[number]
+const RESOURCE_ICONS: Record<string, string> = {
+  PDF: '📄', Video: '🎬', Article: '📰',
+  'Chord Chart': '🎸', Exercise: '🏋️', 'Backing Track': '🎵', Other: '📎',
+}
 import { format } from 'date-fns'
 
 function formatBytes(bytes: number) {

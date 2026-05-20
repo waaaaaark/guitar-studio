@@ -1,8 +1,17 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { RESOURCE_ICONS, type ResourceType } from '@/lib/supabase'
-import { format } from 'date-fns'
+
+// Inline icons to avoid supabase proxy import client-side
+const RESOURCE_ICONS: Record<string, string> = {
+  PDF: '📄',
+  Video: '🎬',
+  Article: '📰',
+  'Chord Chart': '🎸',
+  Exercise: '🏋️',
+  'Backing Track': '🎵',
+  Other: '📎',
+}
 
 type Props = { token: string }
 
@@ -13,11 +22,14 @@ export default function StudentResources({ token }: Props) {
   useEffect(() => {
     fetch(`/api/resources?token=${token}`)
       .then(r => r.json())
-      .then(d => { setAssignments(d); setLoading(false) })
+      .then(d => { setAssignments(Array.isArray(d) ? d : []); setLoading(false) })
       .catch(() => setLoading(false))
   }, [token])
 
   if (loading || assignments.length === 0) return null
+
+  const activeAssignments = assignments.filter((a: any) => a.resource?.active)
+  if (activeAssignments.length === 0) return null
 
   return (
     <section style={{ marginBottom: 40 }}>
@@ -28,9 +40,8 @@ export default function StudentResources({ token }: Props) {
         Resources
       </h2>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {assignments.map((assignment: any) => {
+        {activeAssignments.map((assignment: any) => {
           const r = assignment.resource
-          if (!r || !r.active) return null
           return (
             <a
               key={assignment.id}
@@ -43,7 +54,6 @@ export default function StudentResources({ token }: Props) {
                 display: 'flex', alignItems: 'center', gap: 14,
                 textDecoration: 'none',
                 transition: 'border-color 0.15s, box-shadow 0.15s',
-                cursor: 'pointer',
               }}
               onMouseEnter={e => {
                 e.currentTarget.style.borderColor = 'var(--accent-dim)'
@@ -60,14 +70,14 @@ export default function StudentResources({ token }: Props) {
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: 18,
               }}>
-                {RESOURCE_ICONS[r.resource_type as ResourceType]}
+                {RESOURCE_ICONS[r.resource_type] || '📎'}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ color: 'var(--text-primary)', fontWeight: 500, fontSize: 15 }}>
                   {r.title}
                 </div>
                 {r.description && (
-                  <div style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 2 }}>
+                  <div style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 2, lineHeight: 1.5 }}>
                     {r.description}
                   </div>
                 )}
@@ -80,7 +90,7 @@ export default function StudentResources({ token }: Props) {
               <div style={{ color: 'var(--text-muted)', fontSize: 18, flexShrink: 0 }}>↗</div>
             </a>
           )
-        }).filter(Boolean)}
+        })}
       </div>
     </section>
   )

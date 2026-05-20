@@ -1,7 +1,11 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { RESOURCE_ICONS, type ResourceType } from '@/lib/supabase'
+// Inline to avoid supabase proxy client-side
+const RESOURCE_ICONS: Record<string, string> = {
+  PDF: '📄', Video: '🎬', Article: '📰',
+  'Chord Chart': '🎸', Exercise: '🏋️', 'Backing Track': '🎵', Other: '📎',
+}
 import { useToast } from '@/lib/toast'
 import { format } from 'date-fns'
 
@@ -92,7 +96,7 @@ export default function ResourceAssignPanel({ studentId }: Props) {
                   padding: '9px 12px', borderRadius: 7,
                   border: '1px solid var(--border)', background: 'var(--bg)',
                 }}>
-                  <span style={{ fontSize: 16 }}>{RESOURCE_ICONS[r.resource_type as ResourceType]}</span>
+                  <span style={{ fontSize: 16 }}>{RESOURCE_ICONS[r.resource_type]}</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 500 }}>{r.title}</div>
                     <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{r.resource_type}</div>
@@ -147,7 +151,7 @@ export default function ResourceAssignPanel({ studentId }: Props) {
                 background: 'var(--bg-card)', border: '1px solid var(--border)',
                 display: 'flex', alignItems: 'center', gap: 10,
               }}>
-                <span style={{ fontSize: 16 }}>{RESOURCE_ICONS[r.resource_type as ResourceType]}</span>
+                <span style={{ fontSize: 16 }}>{RESOURCE_ICONS[r.resource_type]}</span>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 500 }}>{r.title}</div>
                   {a.note && (

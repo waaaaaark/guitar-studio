@@ -268,8 +268,9 @@ export default function StudentDetail({ student: initialStudent, onBack, onStude
             )}
           </div>
 
-          {/* Repertoire sidebar — scrollable */}
-          <div>
+          {/* Repertoire + Resources sidebar */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
               <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>Repertoire</h2>
               {data?.repertoire?.length > 0 && (
@@ -312,6 +313,7 @@ export default function StudentDetail({ student: initialStudent, onBack, onStude
               )}
             </div>
 
+            </div>
             {/* Resource assignment */}
             <ResourceAssignPanel studentId={student.id} />
           </div>

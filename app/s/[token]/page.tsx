@@ -6,6 +6,7 @@ import ExportButton from './ExportButton'
 import PastLessons from './PastLessons'
 import RepertoireList from './RepertoireList'
 import StudentInteractive from './StudentInteractive'
+import StudentResources from './StudentResources'
 import { STRIPE_XP, type Belt, type StudentProfile } from '@/lib/supabase'
 
 async function getStudentData(token: string) {
@@ -161,6 +162,9 @@ export default async function StudentPage({ params }: { params: Promise<{ token:
             <RepertoireList repertoire={repertoire} />
           </section>
         )}
+
+        {/* Resources */}
+        <StudentResources token={token} />
 
         {/* Past lessons */}
         {pastLessons.length > 0 && (

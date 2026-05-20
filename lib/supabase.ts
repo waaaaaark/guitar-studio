@@ -121,3 +121,39 @@ export type StudentSong = {
   mastered_at: string | null
   song?: Song
 }
+export type ResourceType = 'PDF' | 'Video' | 'Article' | 'Chord Chart' | 'Exercise' | 'Backing Track' | 'Other'
+export const RESOURCE_TYPES: ResourceType[] = ['PDF', 'Video', 'Article', 'Chord Chart', 'Exercise', 'Backing Track', 'Other']
+
+export const RESOURCE_ICONS: Record<ResourceType, string> = {
+  PDF: '📄',
+  Video: '🎬',
+  Article: '📰',
+  'Chord Chart': '🎸',
+  Exercise: '🏋️',
+  'Backing Track': '🎵',
+  Other: '📎',
+}
+
+export type Resource = {
+  id: string
+  title: string
+  description: string | null
+  resource_type: ResourceType
+  source_type: 'link' | 'upload'
+  url: string | null
+  file_path: string | null
+  file_name: string | null
+  file_size: number | null
+  tags: string[]
+  active: boolean
+  created_at: string
+}
+
+export type StudentResource = {
+  id: string
+  student_id: string
+  resource_id: string
+  assigned_at: string
+  note: string | null
+  resource?: Resource
+}

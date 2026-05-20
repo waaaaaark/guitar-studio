@@ -7,6 +7,7 @@ import StudentModal from './StudentModal'
 import { ThemeToggle } from '@/lib/theme'
 import { useToast } from '@/lib/toast'
 import BeltPanel from './BeltPanel'
+import ResourceAssignPanel from './ResourceAssignPanel'
 
 function getInitials(name: string) {
   const parts = name.trim().split(/\s+/)
@@ -310,6 +311,9 @@ export default function StudentDetail({ student: initialStudent, onBack, onStude
                 </>
               )}
             </div>
+
+            {/* Resource assignment */}
+            <ResourceAssignPanel studentId={student.id} />
           </div>
         </div>
       </main>

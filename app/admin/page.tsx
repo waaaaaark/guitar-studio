@@ -11,6 +11,7 @@ import { ThemeToggle } from '@/lib/theme'
 import BulkEmailModal from './BulkEmailModal'
 import { useToast } from '@/lib/toast'
 import TipsManager from './TipsManager'
+import ResourcesLibrary from './ResourcesLibrary'
 
 function getInitials(name: string) {
   const parts = name.trim().split(/\s+/)
@@ -22,7 +23,7 @@ export default function AdminPage() {
   const { toast } = useToast()
   const [students, setStudents] = useState<Student[]>([])
   const [loading, setLoading] = useState(true)
-  const [view, setView] = useState<'roster' | 'student' | 'songs' | 'tips'>('roster')
+  const [view, setView] = useState<'roster' | 'student' | 'songs' | 'tips' | 'resources'>('roster')
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null)
   const [showAddModal, setShowAddModal] = useState(false)
   const [showImport, setShowImport] = useState(false)
@@ -100,6 +101,7 @@ export default function AdminPage() {
 
   if (currentView === 'songs') return <SongsLibrary onBack={() => setView('roster')} />
   if (currentView === 'tips') return <TipsManager onBack={() => setView('roster')} />
+  if (currentView === 'resources') return <ResourcesLibrary onBack={() => setView('roster')} />
 
   const tabs = [
     { key: 'active', label: 'Active', count: activeStudents.length },
@@ -125,12 +127,12 @@ export default function AdminPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
           <span style={{ color: 'var(--accent)', fontWeight: 700, fontSize: 15 }}>🎸 Studio</span>
           <div style={{ display: 'flex' }}>
-            {(['Students', 'Songs', 'Tips'] as const).map(tab => (
+            {(['Students', 'Songs', 'Tips', 'Resources'] as const).map(tab => (
               <button key={tab} onClick={() => setView(tab === 'Students' ? 'roster' : 'songs')} style={{
                 background: 'none', border: 'none', cursor: 'pointer',
                 padding: '4px 12px', fontSize: 14, fontFamily: 'inherit',
-                color: (tab === 'Students' ? currentView === 'roster' : tab === 'Songs' ? currentView === 'songs' : currentView === 'tips') ? 'var(--text-primary)' : 'var(--text-muted)',
-                borderBottom: (tab === 'Students' ? currentView === 'roster' : tab === 'Songs' ? currentView === 'songs' : currentView === 'tips') ? '2px solid var(--accent)' : '2px solid transparent',
+                color: (tab === 'Students' ? currentView === 'roster' : tab === 'Songs' ? currentView === 'songs' : tab === 'Tips' ? currentView === 'tips' : currentView === 'resources') ? 'var(--text-primary)' : 'var(--text-muted)',
+                borderBottom: (tab === 'Students' ? currentView === 'roster' : tab === 'Songs' ? currentView === 'songs' : tab === 'Tips' ? currentView === 'tips' : currentView === 'resources') ? '2px solid var(--accent)' : '2px solid transparent',
                 marginBottom: -1, paddingBottom: 6,
               }}>{tab}</button>
             ))}

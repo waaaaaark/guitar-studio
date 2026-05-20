@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
     const mediaType = (file.type && file.type.startsWith('image/')) ? file.type : 'image/jpeg'
 
     const body = {
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-6',
       max_tokens: 2000,
       messages: [{
         role: 'user',

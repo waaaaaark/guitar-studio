@@ -3,6 +3,8 @@ import { supabase } from '@/lib/supabase'
 import { format } from 'date-fns'
 import { ThemeToggle } from '@/lib/theme'
 import ExportButton from './ExportButton'
+import PastLessons from './PastLessons'
+import RepertoireList from './RepertoireList'
 
 async function getStudentData(token: string) {
   const { data: student } = await supabase
@@ -57,7 +59,7 @@ export default async function StudentPage({ params }: { params: Promise<{ token:
               {student.name}
             </h1>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <ExportButton student={student} lessons={lessons} repertoire={repertoire} />
             <ThemeToggle />
           </div>
@@ -66,14 +68,11 @@ export default async function StudentPage({ params }: { params: Promise<{ token:
 
       <main style={{ maxWidth: 680, margin: '0 auto', padding: '28px 20px 80px' }}>
 
-        {/* Stats row */}
-        <div style={{
-          display: 'flex', gap: 12, marginBottom: 32, flexWrap: 'wrap',
-        }}>
+        {/* Stats row — no skill level */}
+        <div style={{ display: 'flex', gap: 12, marginBottom: 32, flexWrap: 'wrap' }}>
           {[
             { label: 'Student since', value: format(new Date(student.start_date + 'T12:00:00'), 'MMM yyyy') },
             { label: 'Lessons', value: student.lesson_count },
-            { label: 'Level', value: student.skill_level },
           ].map(stat => (
             <div key={stat.label} className="card" style={{ padding: '12px 18px', flex: '1 1 120px' }}>
               <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: 'sans-serif' }}>
@@ -98,7 +97,7 @@ export default async function StudentPage({ params }: { params: Promise<{ token:
               </span>
             </div>
 
-            <div className="card" style={{ padding: '20px', marginBottom: 12 }}>
+            <div className="card" style={{ padding: '20px' }}>
               <div style={{ marginBottom: 18 }}>
                 <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 8, fontFamily: 'sans-serif' }}>
                   What we covered
@@ -120,13 +119,13 @@ export default async function StudentPage({ params }: { params: Promise<{ token:
                 </p>
               </div>
 
-              {latestLesson.lesson_songs?.length > 0 && (
+              {(latestLesson as any).lesson_songs?.length > 0 && (
                 <div style={{ marginTop: 16 }}>
                   <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 8, fontFamily: 'sans-serif' }}>
                     Songs this lesson
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                    {latestLesson.lesson_songs.map((ls: any) => (
+                    {(latestLesson as any).lesson_songs.map((ls: any) => (
                       <span key={ls.song.id} className="tag tag-skill">
                         {ls.song.title}{ls.song.artist ? ` — ${ls.song.artist}` : ''}
                       </span>
@@ -142,80 +141,28 @@ export default async function StudentPage({ params }: { params: Promise<{ token:
           </div>
         )}
 
-        {/* Repertoire */}
+        {/* Repertoire — scrolling list */}
         {repertoire.length > 0 && (
           <section className="fade-in" style={{ marginBottom: 40, animationDelay: '0.1s', opacity: 0 }}>
-            <h2 style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--accent)', marginBottom: 14, fontFamily: 'sans-serif' }}>
-              Our Repertoire
-            </h2>
-            <div className="card" style={{ overflow: 'hidden' }}>
-              {(repertoire as any[]).map((item: any, i: number) => (
-                <div key={item.song.id} style={{
-                  padding: '13px 18px',
-                  borderBottom: i < repertoire.length - 1 ? '1px solid var(--border)' : 'none',
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12,
-                }}>
-                  <div style={{ minWidth: 0 }}>
-                    <span style={{ color: 'var(--text-primary)' }}>{item.song.title}</span>
-                    {item.song.artist && (
-                      <span style={{ color: 'var(--text-muted)', marginLeft: 8, fontSize: 13 }}>
-                        {item.song.artist}
-                      </span>
-                    )}
-                  </div>
-                  <span style={{ color: 'var(--text-muted)', fontSize: 12, fontFamily: 'sans-serif', flexShrink: 0 }}>
-                    {format(new Date(item.first_worked_on + 'T12:00:00'), 'MMM yyyy')}
-                  </span>
-                </div>
-              ))}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 14 }}>
+              <h2 style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--accent)', fontFamily: 'sans-serif' }}>
+                Our Repertoire
+              </h2>
+              <span style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'sans-serif' }}>
+                {repertoire.length} song{repertoire.length !== 1 ? 's' : ''}
+              </span>
             </div>
+            <RepertoireList repertoire={repertoire} />
           </section>
         )}
 
-        {/* Past lessons */}
+        {/* Past lessons — show 3, expandable */}
         {pastLessons.length > 0 && (
           <section className="fade-in" style={{ animationDelay: '0.2s', opacity: 0 }}>
             <h2 style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--accent)', marginBottom: 14, fontFamily: 'sans-serif' }}>
               Past Lessons
             </h2>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {pastLessons.map((lesson: any) => (
-                <details key={lesson.id} className="card" style={{ overflow: 'hidden' }}>
-                  <summary style={{
-                    padding: '14px 18px', cursor: 'pointer',
-                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                    listStyle: 'none', userSelect: 'none',
-                  }}>
-                    <span style={{ color: 'var(--text-primary)', fontFamily: 'sans-serif', fontSize: 14 }}>
-                      {format(new Date(lesson.lesson_date + 'T12:00:00'), 'MMMM d, yyyy')}
-                    </span>
-                    <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>↓</span>
-                  </summary>
-                  <div style={{ padding: '0 18px 18px', borderTop: '1px solid var(--border)' }}>
-                    <div style={{ paddingTop: 14, marginBottom: 12 }}>
-                      <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 6, fontFamily: 'sans-serif' }}>What we covered</div>
-                      <p style={{ color: 'var(--text-secondary)', lineHeight: 1.7, whiteSpace: 'pre-wrap', fontSize: 14 }}>{lesson.what_we_covered}</p>
-                    </div>
-                    <div style={{ marginBottom: 12 }}>
-                      <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 6, fontFamily: 'sans-serif' }}>Focus</div>
-                      <p style={{ color: 'var(--text-secondary)', lineHeight: 1.7, whiteSpace: 'pre-wrap', fontSize: 14 }}>{lesson.focus_for_week}</p>
-                    </div>
-                    {lesson.lesson_songs?.length > 0 && (
-                      <div>
-                        <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 6, fontFamily: 'sans-serif' }}>Songs</div>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                          {lesson.lesson_songs.map((ls: any) => (
-                            <span key={ls.song.id} className="tag tag-skill" style={{ fontSize: 12 }}>
-                              {ls.song.title}{ls.song.artist ? ` — ${ls.song.artist}` : ''}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </details>
-              ))}
-            </div>
+            <PastLessons lessons={pastLessons} />
           </section>
         )}
       </main>

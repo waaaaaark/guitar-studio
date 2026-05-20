@@ -27,6 +27,8 @@ export default function StudentDetail({ student: initialStudent, onBack, onStude
   const [showAddLesson, setShowAddLesson] = useState(false)
   const [allSongs, setAllSongs] = useState<Song[]>([])
   const [exporting, setExporting] = useState(false)
+  const [showAllLessons, setShowAllLessons] = useState(false)
+  const LESSONS_INITIAL = 3
 
   const load = useCallback(async () => {
     const [sRes, songsRes] = await Promise.all([
@@ -180,84 +182,123 @@ export default function StudentDetail({ student: initialStudent, onBack, onStude
                 No lessons logged yet.
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {data.lessons.map((lesson: any, i: number) => (
-                  <div key={lesson.id} className="card" style={{ padding: '16px' }}>
-                    {/* Lesson header */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12, gap: 8 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                        <span style={{ color: 'var(--text-primary)', fontWeight: 600, fontSize: 14 }}>
-                          {format(new Date(lesson.lesson_date + 'T12:00:00'), 'MMM d, yyyy')}
-                        </span>
-                        {i === 0 && <span className="tag tag-active" style={{ fontSize: 10 }}>Latest</span>}
-                      </div>
-                      <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
-                        {student.email && (
-                          <button className="btn btn-ghost btn-sm" style={{ padding: '4px 10px' }}
-                            onClick={async () => {
-                              const res = await fetch('/api/email', {
-                                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ lesson_id: lesson.id }),
-                              })
-                              if (res.ok) toast('Email sent to ' + student.email?.split('@')[0])
-                              else toast('Email failed', 'error')
-                            }}>✉</button>
-                        )}
-                        <button className="btn btn-danger btn-sm" style={{ padding: '4px 10px' }}
-                          onClick={() => deleteLesson(lesson.id)}>✕</button>
-                      </div>
-                    </div>
-
-                    <div style={{ marginBottom: 10 }}>
-                      <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 5 }}>What we covered</div>
-                      <p style={{ color: 'var(--text-secondary)', fontSize: 13, lineHeight: 1.65, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                        {lesson.what_we_covered}
-                      </p>
-                    </div>
-
-                    <div style={{ marginBottom: lesson.lesson_songs?.length ? 10 : 0 }}>
-                      <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 5 }}>Focus for the week</div>
-                      <p style={{ color: 'var(--text-secondary)', fontSize: 13, lineHeight: 1.65, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                        {lesson.focus_for_week}
-                      </p>
-                    </div>
-
-                    {lesson.lesson_songs?.length > 0 && (
-                      <div>
-                        <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 5 }}>Songs</div>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-                          {lesson.lesson_songs.map((ls: any) => (
-                            <span key={ls.song.id} className="tag tag-skill" style={{ fontSize: 11 }}>
-                              {ls.song.title}{ls.song.artist ? ` — ${ls.song.artist}` : ''}
-                            </span>
-                          ))}
+              <div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {(showAllLessons ? data.lessons : data.lessons.slice(0, LESSONS_INITIAL)).map((lesson: any, i: number) => (
+                    <div key={lesson.id} className="card" style={{ padding: '16px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12, gap: 8 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                          <span style={{ color: 'var(--text-primary)', fontWeight: 600, fontSize: 14 }}>
+                            {format(new Date(lesson.lesson_date + 'T12:00:00'), 'MMM d, yyyy')}
+                          </span>
+                          {i === 0 && <span className="tag tag-active" style={{ fontSize: 10 }}>Latest</span>}
+                        </div>
+                        <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
+                          {student.email && (
+                            <button className="btn btn-ghost btn-sm" style={{ padding: '4px 10px' }}
+                              onClick={async () => {
+                                const res = await fetch('/api/email', {
+                                  method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ lesson_id: lesson.id }),
+                                })
+                                if (res.ok) toast('Email sent to ' + student.email?.split('@')[0])
+                                else toast('Email failed', 'error')
+                              }}>✉</button>
+                          )}
+                          <button className="btn btn-danger btn-sm" style={{ padding: '4px 10px' }}
+                            onClick={() => deleteLesson(lesson.id)}>✕</button>
                         </div>
                       </div>
-                    )}
-                  </div>
-                ))}
+                      <div style={{ marginBottom: 10 }}>
+                        <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 5 }}>What we covered</div>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: 13, lineHeight: 1.65, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                          {lesson.what_we_covered}
+                        </p>
+                      </div>
+                      <div style={{ marginBottom: lesson.lesson_songs?.length ? 10 : 0 }}>
+                        <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 5 }}>Focus for the week</div>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: 13, lineHeight: 1.65, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                          {lesson.focus_for_week}
+                        </p>
+                      </div>
+                      {lesson.lesson_songs?.length > 0 && (
+                        <div>
+                          <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 5 }}>Songs</div>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                            {lesson.lesson_songs.map((ls: any) => (
+                              <span key={ls.song.id} className="tag tag-skill" style={{ fontSize: 11 }}>
+                                {ls.song.title}{ls.song.artist ? ` — ${ls.song.artist}` : ''}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                {data.lessons.length > LESSONS_INITIAL && (
+                  <button
+                    onClick={() => setShowAllLessons(p => !p)}
+                    style={{
+                      marginTop: 10, width: '100%', padding: '10px',
+                      background: 'var(--bg-card)', border: '1px solid var(--border)',
+                      borderRadius: 8, color: 'var(--text-muted)', cursor: 'pointer',
+                      fontFamily: 'inherit', fontSize: 13, transition: 'all 0.15s',
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.color = 'var(--accent)' }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-muted)' }}
+                  >
+                    {showAllLessons
+                      ? 'Show less ↑'
+                      : `Show ${data.lessons.length - LESSONS_INITIAL} older lesson${data.lessons.length - LESSONS_INITIAL !== 1 ? 's' : ''} ↓`}
+                  </button>
+                )}
               </div>
             )}
           </div>
 
-          {/* Repertoire sidebar */}
+          {/* Repertoire sidebar — scrollable */}
           <div>
-            <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 12 }}>Repertoire</h2>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>Repertoire</h2>
+              {data?.repertoire?.length > 0 && (
+                <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{data.repertoire.length} songs</span>
+              )}
+            </div>
             <div className="card" style={{ overflow: 'hidden' }}>
               {!data?.repertoire?.length ? (
                 <div style={{ padding: 16, color: 'var(--text-muted)', fontSize: 13 }}>No songs yet.</div>
-              ) : data.repertoire.map((item: any, i: number) => (
-                <div key={item.song.id} style={{
-                  padding: '10px 14px',
-                  borderBottom: i < data.repertoire.length - 1 ? '1px solid var(--border)' : 'none',
-                }}>
-                  <div style={{ color: 'var(--text-primary)', fontSize: 13, wordBreak: 'break-word' }}>{item.song.title}</div>
-                  {item.song.artist && <div style={{ color: 'var(--text-muted)', fontSize: 11, marginTop: 2 }}>{item.song.artist}</div>}
-                  <div style={{ color: 'var(--text-muted)', fontSize: 11, marginTop: 2 }}>
-                    {format(new Date(item.first_worked_on + 'T12:00:00'), 'MMM yyyy')}
+              ) : (
+                <>
+                  <div style={{
+                    maxHeight: data.repertoire.length > 8 ? '392px' : 'none',
+                    overflowY: data.repertoire.length > 8 ? 'auto' : 'visible',
+                    overscrollBehavior: 'contain',
+                  }}>
+                    {data.repertoire.map((item: any, i: number) => (
+                      <div key={item.song.id} style={{
+                        padding: '10px 14px',
+                        borderBottom: i < data.repertoire.length - 1 ? '1px solid var(--border)' : 'none',
+                      }}>
+                        <div style={{ color: 'var(--text-primary)', fontSize: 13, wordBreak: 'break-word' }}>{item.song.title}</div>
+                        {item.song.artist && <div style={{ color: 'var(--text-muted)', fontSize: 11, marginTop: 2 }}>{item.song.artist}</div>}
+                        <div style={{ color: 'var(--text-muted)', fontSize: 11, marginTop: 2 }}>
+                          {format(new Date(item.first_worked_on + 'T12:00:00'), 'MMM yyyy')}
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                </div>
-              ))}
+                  {data.repertoire.length > 8 && (
+                    <div style={{
+                      padding: '7px 14px', borderTop: '1px solid var(--border)',
+                      fontSize: 11, color: 'var(--text-muted)', textAlign: 'center',
+                      background: 'var(--bg-elevated)',
+                    }}>
+                      Scroll to see all {data.repertoire.length} songs
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           </div>
         </div>

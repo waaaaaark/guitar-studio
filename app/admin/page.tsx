@@ -8,6 +8,7 @@ import StudentDetail from './StudentDetail'
 import SongsLibrary from './SongsLibrary'
 import ImportModal from './ImportModal'
 import { ThemeToggle } from '@/lib/theme'
+import BulkEmailModal from './BulkEmailModal'
 import { useToast } from '@/lib/toast'
 
 function getInitials(name: string) {
@@ -24,6 +25,7 @@ export default function AdminPage() {
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null)
   const [showAddModal, setShowAddModal] = useState(false)
   const [showImport, setShowImport] = useState(false)
+  const [showBulkEmail, setShowBulkEmail] = useState(false)
   const [activeTab, setActiveTab] = useState<'active' | 'inactive'>('active')
   const [search, setSearch] = useState('')
   const [testLoading, setTestLoading] = useState(false)
@@ -142,6 +144,7 @@ export default function AdminPage() {
               </div>
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button className="btn btn-ghost btn-sm" onClick={() => setShowBulkEmail(true)}>✉ Bulk Email</button>
               <button className="btn btn-ghost btn-sm" onClick={() => setShowImport(true)}>↑ Import Sheet</button>
               <button className="btn btn-primary btn-sm" onClick={() => setShowAddModal(true)}>+ Add Student</button>
             </div>
@@ -206,6 +209,11 @@ export default function AdminPage() {
                   </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                  {student.belt_system_active && student.current_streak > 0 && (
+                    <span style={{ fontSize: 12, color: 'var(--accent)', fontFamily: 'sans-serif' }} className="hide-mobile">
+                      🔥 {student.current_streak}d
+                    </span>
+                  )}
                   <span className="tag tag-skill hide-mobile">{student.skill_level}</span>
                   <span style={{ color: 'var(--text-muted)', fontSize: 18 }}>›</span>
                 </div>
@@ -235,6 +243,7 @@ export default function AdminPage() {
 
       {showAddModal && <StudentModal onClose={() => setShowAddModal(false)} onSaved={() => { setShowAddModal(false); loadStudents() }} />}
       {showImport && <ImportModal onClose={() => setShowImport(false)} onImported={() => { setShowImport(false); loadStudents() }} />}
+      {showBulkEmail && <BulkEmailModal students={students} onClose={() => setShowBulkEmail(false)} />}
     </div>
   )
 }

@@ -13,11 +13,13 @@ export default function StudentModal({ student, onClose, onSaved }: Props) {
     lesson_frequency: student?.lesson_frequency || 'Weekly',
     start_date: student?.start_date || new Date().toISOString().split('T')[0],
     admin_notes: student?.admin_notes || '',
+    student_profile: student?.student_profile || 'Teen',
+    belt_system_active: student?.belt_system_active ?? true,
   })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
-  function set(field: string, value: string) {
+  function set(field: string, value: any) {
     setForm(f => ({ ...f, [field]: value }))
   }
 
@@ -73,14 +75,47 @@ export default function StudentModal({ student, onClose, onSaved }: Props) {
               </select>
             </div>
           </div>
-          <div>
-            <label>Start Date</label>
-            <input type="date" value={form.start_date} onChange={e => set('start_date', e.target.value)} />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div>
+              <label>Student Profile</label>
+              <select value={form.student_profile} onChange={e => set('student_profile', e.target.value)}>
+                <option>Child</option>
+                <option>Teen</option>
+                <option>Adult</option>
+              </select>
+            </div>
+            <div>
+              <label>Start Date</label>
+              <input type="date" value={form.start_date} onChange={e => set('start_date', e.target.value)} />
+            </div>
+          </div>
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '12px 14px', background: 'var(--bg-elevated)', borderRadius: 8, border: '1px solid var(--border)',
+          }}>
+            <div>
+              <div style={{ fontSize: 14, color: 'var(--text-primary)', fontWeight: 500 }}>Belt System</div>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>Enable XP, belts, and practice tracking</div>
+            </div>
+            <button
+              onClick={() => set('belt_system_active', !form.belt_system_active)}
+              style={{
+                width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer',
+                background: form.belt_system_active ? 'var(--accent)' : 'var(--border)',
+                position: 'relative', transition: 'background 0.2s', flexShrink: 0,
+              }}
+            >
+              <div style={{
+                position: 'absolute', top: 3, left: form.belt_system_active ? 23 : 3,
+                width: 18, height: 18, borderRadius: '50%', background: 'white',
+                transition: 'left 0.2s',
+              }} />
+            </button>
           </div>
           <div>
             <label>Private Notes (admin only)</label>
             <textarea value={form.admin_notes} onChange={e => set('admin_notes', e.target.value)}
-              placeholder="Anything to remember about this student…" style={{ minHeight: 80 }} />
+              placeholder="Anything to remember about this student…" style={{ minHeight: 70 }} />
           </div>
         </div>
 

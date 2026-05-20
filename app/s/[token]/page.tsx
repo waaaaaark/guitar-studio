@@ -5,6 +5,8 @@ import { ThemeToggle } from '@/lib/theme'
 import ExportButton from './ExportButton'
 import PastLessons from './PastLessons'
 import RepertoireList from './RepertoireList'
+import StudentInteractive from './StudentInteractive'
+import { STRIPE_XP, type Belt, type StudentProfile } from '@/lib/supabase'
 
 async function getStudentData(token: string) {
   const { data: student } = await supabase
@@ -23,7 +25,7 @@ async function getStudentData(token: string) {
 
   const { data: repertoire } = await supabase
     .from('student_songs')
-    .select(`song:songs(*), first_worked_on`)
+    .select(`song:songs(*), first_worked_on, mastery_status, mastered_at`)
     .eq('student_id', student.id)
     .order('first_worked_on', { ascending: false })
 
@@ -38,6 +40,7 @@ export default async function StudentPage({ params }: { params: Promise<{ token:
   const { student, lessons, repertoire } = data
   const latestLesson = lessons[0]
   const pastLessons = lessons.slice(1)
+  const stripeThreshold = STRIPE_XP[student.belt as Belt] || 0
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
@@ -66,15 +69,24 @@ export default async function StudentPage({ params }: { params: Promise<{ token:
         </div>
       </header>
 
-      <main style={{ maxWidth: 680, margin: '0 auto', padding: '28px 20px 80px' }}>
+      <main style={{ maxWidth: 680, margin: '0 auto', padding: '24px 20px 80px' }}>
 
-        {/* Stats row — no skill level */}
+        {/* Interactive section — belt, practice timer, song mastery */}
+        <StudentInteractive
+          token={token}
+          student={student}
+          repertoire={repertoire}
+          stripeThreshold={stripeThreshold}
+        />
+
+        {/* Stats row */}
         <div style={{ display: 'flex', gap: 12, marginBottom: 32, flexWrap: 'wrap' }}>
           {[
             { label: 'Student since', value: format(new Date(student.start_date + 'T12:00:00'), 'MMM yyyy') },
             { label: 'Lessons', value: student.lesson_count },
+            { label: 'Practice time', value: `${Math.round(student.total_practice_minutes / 60 * 10) / 10}h` },
           ].map(stat => (
-            <div key={stat.label} className="card" style={{ padding: '12px 18px', flex: '1 1 120px' }}>
+            <div key={stat.label} className="card" style={{ padding: '12px 18px', flex: '1 1 100px' }}>
               <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: 'sans-serif' }}>
                 {stat.label}
               </div>
@@ -96,7 +108,6 @@ export default async function StudentPage({ params }: { params: Promise<{ token:
                 {format(new Date(latestLesson.lesson_date + 'T12:00:00'), 'MMMM d, yyyy')}
               </span>
             </div>
-
             <div className="card" style={{ padding: '20px' }}>
               <div style={{ marginBottom: 18 }}>
                 <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 8, fontFamily: 'sans-serif' }}>
@@ -106,11 +117,7 @@ export default async function StudentPage({ params }: { params: Promise<{ token:
                   {latestLesson.what_we_covered}
                 </p>
               </div>
-
-              <div style={{
-                background: 'var(--accent-glow)', border: '1px solid var(--accent-tag-border)',
-                borderRadius: 6, padding: '14px 18px',
-              }}>
+              <div style={{ background: 'var(--accent-glow)', border: '1px solid var(--accent-tag-border)', borderRadius: 6, padding: '14px 18px' }}>
                 <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--accent)', marginBottom: 8, fontFamily: 'sans-serif' }}>
                   Focus this week
                 </div>
@@ -118,7 +125,6 @@ export default async function StudentPage({ params }: { params: Promise<{ token:
                   {latestLesson.focus_for_week}
                 </p>
               </div>
-
               {(latestLesson as any).lesson_songs?.length > 0 && (
                 <div style={{ marginTop: 16 }}>
                   <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 8, fontFamily: 'sans-serif' }}>
@@ -141,7 +147,7 @@ export default async function StudentPage({ params }: { params: Promise<{ token:
           </div>
         )}
 
-        {/* Repertoire — scrolling list */}
+        {/* Repertoire */}
         {repertoire.length > 0 && (
           <section className="fade-in" style={{ marginBottom: 40, animationDelay: '0.1s', opacity: 0 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 14 }}>
@@ -156,7 +162,7 @@ export default async function StudentPage({ params }: { params: Promise<{ token:
           </section>
         )}
 
-        {/* Past lessons — show 3, expandable */}
+        {/* Past lessons */}
         {pastLessons.length > 0 && (
           <section className="fade-in" style={{ animationDelay: '0.2s', opacity: 0 }}>
             <h2 style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--accent)', marginBottom: 14, fontFamily: 'sans-serif' }}>

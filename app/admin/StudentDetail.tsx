@@ -6,6 +6,7 @@ import type { Student, Song } from '@/lib/supabase'
 import StudentModal from './StudentModal'
 import { ThemeToggle } from '@/lib/theme'
 import { useToast } from '@/lib/toast'
+import BeltPanel from './BeltPanel'
 
 function getInitials(name: string) {
   const parts = name.trim().split(/\s+/)
@@ -163,6 +164,15 @@ export default function StudentDetail({ student: initialStudent, onBack, onStude
             <button className="btn btn-danger btn-sm" onClick={deleteStudent}>Delete</button>
           </div>
         </div>
+
+        {/* Belt Panel */}
+        {!loading && data && (
+          <BeltPanel
+            student={data.student}
+            repertoire={data.repertoire}
+            onStudentUpdated={load}
+          />
+        )}
 
         {/* Lessons + Repertoire */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 260px', gap: 20, alignItems: 'start' }}

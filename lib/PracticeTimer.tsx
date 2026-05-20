@@ -18,6 +18,14 @@ export default function PracticeTimer({ token, onSessionLogged }: Props) {
   const [lastXP, setLastXP] = useState(0)
   const [capped, setCapped] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [tip, setTip] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetch('/api/tips?mode=random')
+      .then(r => r.json())
+      .then(d => setTip(d.tip_text || null))
+      .catch(() => {})
+  }, [])
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const inactivityRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -91,6 +99,11 @@ export default function PracticeTimer({ token, onSessionLogged }: Props) {
       setCapped(data.capped)
       setPhase('done')
       onSessionLogged(data.xp_earned, data.minutes_logged)
+      // Refresh tip
+      fetch('/api/tips?mode=random')
+        .then(r => r.json())
+        .then(d => setTip(d.tip_text || null))
+        .catch(() => {})
     }
   }
 
@@ -132,6 +145,7 @@ export default function PracticeTimer({ token, onSessionLogged }: Props) {
   }
 
   return (
+    <>
     <div style={{
       background: 'var(--bg-card)', borderRadius: 12,
       border: '1px solid var(--border)', overflow: 'hidden',
@@ -329,5 +343,31 @@ export default function PracticeTimer({ token, onSessionLogged }: Props) {
         </div>
       )}
     </div>
+
+    {/* Practice tip */}
+      {tip && phase === 'idle' && (
+        <div style={{
+          marginTop: 12,
+          padding: '12px 16px',
+          background: 'var(--accent-glow)',
+          border: '1px solid var(--accent-tag-border)',
+          borderRadius: 8,
+          display: 'flex',
+          gap: 10,
+          alignItems: 'flex-start',
+        }}>
+          <span style={{ fontSize: 16, flexShrink: 0, marginTop: 1 }}>💡</span>
+          <p style={{
+            fontSize: 13,
+            color: 'var(--text-secondary)',
+            fontFamily: 'sans-serif',
+            lineHeight: 1.6,
+            margin: 0,
+          }}>
+            {tip}
+          </p>
+        </div>
+      )}
+    </>
   )
 }

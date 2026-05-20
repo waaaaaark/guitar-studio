@@ -105,7 +105,7 @@ export default function SongsLibrary({ onBack }: { onBack: () => void }) {
         ) : filtered.length === 0 ? (
           <div style={{ color: 'var(--text-muted)', fontSize: 14 }}>No songs found.</div>
         ) : (
-          <div className="card" style={{ overflow: 'hidden' }}>
+          <div className="card" style={{ overflow: 'visible' }}>
             {filtered.map((song, i) => {
               const count = song.student_songs?.length || 0
               const isOpen = expanded === song.id
@@ -162,7 +162,7 @@ export default function SongsLibrary({ onBack }: { onBack: () => void }) {
 
                     {/* Tag input */}
                     {addingTagFor === song.id && (
-                      <div style={{ marginTop: 10, position: 'relative' }}>
+                      <div style={{ marginTop: 10, position: 'relative', zIndex: 20 }}>
                         <div style={{ display: 'flex', gap: 6 }}>
                           <input
                             autoFocus

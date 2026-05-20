@@ -3,7 +3,7 @@ import { checkAdminAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import { SONG_MASTERY_XP, STRIPE_XP, type Belt } from '@/lib/supabase'
 
-// Student marks a song as "working on it"
+// Student marks a song as ready for mastery review
 export async function PUT(req: NextRequest) {
   const { token, song_id } = await req.json()
   if (!token || !song_id) return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
@@ -16,12 +16,37 @@ export async function PUT(req: NextRequest) {
 
   if (!student) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  await supabase.from('student_songs').upsert({
-    student_id: student.id,
-    song_id,
-    mastery_status: 'eligible',
-    first_worked_on: new Date().toISOString().split('T')[0],
-  }, { onConflict: 'student_id,song_id' })
+  // Check if student_songs row exists
+  const { data: existing } = await supabase
+    .from('student_songs')
+    .select('mastery_status')
+    .eq('student_id', student.id)
+    .eq('song_id', song_id)
+    .single()
+
+  if (existing) {
+    // Row exists — only update if not already mastered
+    if (existing.mastery_status === 'mastered') {
+      return NextResponse.json({ ok: true, already_mastered: true })
+    }
+    const { error } = await supabase
+      .from('student_songs')
+      .update({ mastery_status: 'eligible' })
+      .eq('student_id', student.id)
+      .eq('song_id', song_id)
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  } else {
+    // Row doesn't exist — insert it
+    const { error } = await supabase
+      .from('student_songs')
+      .insert({
+        student_id: student.id,
+        song_id,
+        mastery_status: 'eligible',
+        first_worked_on: new Date().toISOString().split('T')[0],
+      })
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  }
 
   return NextResponse.json({ ok: true })
 }
@@ -50,10 +75,13 @@ export async function POST(req: NextRequest) {
   const today = new Date().toISOString().split('T')[0]
 
   // Mark as mastered
-  await supabase.from('student_songs').update({
-    mastery_status: 'mastered',
-    mastered_at: today,
-  }).eq('student_id', student_id).eq('song_id', song_id)
+  const { error: masterError } = await supabase
+    .from('student_songs')
+    .update({ mastery_status: 'mastered', mastered_at: today })
+    .eq('student_id', student_id)
+    .eq('song_id', song_id)
+
+  if (masterError) return NextResponse.json({ error: masterError.message }, { status: 500 })
 
   // Award XP
   const newTotalXP = student.total_xp + SONG_MASTERY_XP
@@ -76,4 +104,23 @@ export async function POST(req: NextRequest) {
   })
 
   return NextResponse.json({ ok: true, xp_awarded: SONG_MASTERY_XP })
+}
+
+// GET — fetch pending mastery requests (for admin notifications)
+export async function GET(req: NextRequest) {
+  const authed = await checkAdminAuth()
+  if (!authed) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const { data } = await supabase
+    .from('student_songs')
+    .select(`
+      student_id,
+      song_id,
+      song:songs(title, artist),
+      student:students(id, name, token)
+    `)
+    .eq('mastery_status', 'eligible')
+    .order('student_id')
+
+  return NextResponse.json(data || [])
 }

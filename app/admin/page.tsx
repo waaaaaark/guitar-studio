@@ -10,6 +10,7 @@ import ImportModal from './ImportModal'
 import { ThemeToggle } from '@/lib/theme'
 import BulkEmailModal from './BulkEmailModal'
 import { useToast } from '@/lib/toast'
+import TipsManager from './TipsManager'
 
 function getInitials(name: string) {
   const parts = name.trim().split(/\s+/)
@@ -21,7 +22,7 @@ export default function AdminPage() {
   const { toast } = useToast()
   const [students, setStudents] = useState<Student[]>([])
   const [loading, setLoading] = useState(true)
-  const [view, setView] = useState<'roster' | 'student' | 'songs'>('roster')
+  const [view, setView] = useState<'roster' | 'student' | 'songs' | 'tips'>('roster')
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null)
   const [showAddModal, setShowAddModal] = useState(false)
   const [showImport, setShowImport] = useState(false)
@@ -30,11 +31,17 @@ export default function AdminPage() {
   const [search, setSearch] = useState('')
   const [testLoading, setTestLoading] = useState(false)
   const [hasTestData, setHasTestData] = useState(false)
+  const [pendingMastery, setPendingMastery] = useState<any[]>([])
 
   const loadStudents = useCallback(async () => {
-    const res = await fetch('/api/students')
-    const data = await res.json()
+    const [studentsRes, masteryRes] = await Promise.all([
+      fetch('/api/students'),
+      fetch('/api/mastery'),
+    ])
+    const data = await studentsRes.json()
+    const mastery = await masteryRes.json()
     setStudents(data)
+    setPendingMastery(mastery)
     setHasTestData(data.some((s: Student) => s.name.includes('__test__')))
     setLoading(false)
   }, [])
@@ -92,6 +99,7 @@ export default function AdminPage() {
   }
 
   if (currentView === 'songs') return <SongsLibrary onBack={() => setView('roster')} />
+  if (currentView === 'tips') return <TipsManager onBack={() => setView('roster')} />
 
   const tabs = [
     { key: 'active', label: 'Active', count: activeStudents.length },
@@ -117,12 +125,12 @@ export default function AdminPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
           <span style={{ color: 'var(--accent)', fontWeight: 700, fontSize: 15 }}>🎸 Studio</span>
           <div style={{ display: 'flex' }}>
-            {(['Students', 'Songs'] as const).map(tab => (
+            {(['Students', 'Songs', 'Tips'] as const).map(tab => (
               <button key={tab} onClick={() => setView(tab === 'Students' ? 'roster' : 'songs')} style={{
                 background: 'none', border: 'none', cursor: 'pointer',
                 padding: '4px 12px', fontSize: 14, fontFamily: 'inherit',
-                color: (tab === 'Students' ? currentView === 'roster' : currentView === 'songs') ? 'var(--text-primary)' : 'var(--text-muted)',
-                borderBottom: (tab === 'Students' ? currentView === 'roster' : currentView === 'songs') ? '2px solid var(--accent)' : '2px solid transparent',
+                color: (tab === 'Students' ? currentView === 'roster' : tab === 'Songs' ? currentView === 'songs' : currentView === 'tips') ? 'var(--text-primary)' : 'var(--text-muted)',
+                borderBottom: (tab === 'Students' ? currentView === 'roster' : tab === 'Songs' ? currentView === 'songs' : currentView === 'tips') ? '2px solid var(--accent)' : '2px solid transparent',
                 marginBottom: -1, paddingBottom: 6,
               }}>{tab}</button>
             ))}
@@ -151,6 +159,54 @@ export default function AdminPage() {
           </div>
           <input placeholder="Search students…" value={search} onChange={e => setSearch(e.target.value)} style={{ maxWidth: 320 }} />
         </div>
+
+        {/* Mastery approval notification panel */}
+        {pendingMastery.length > 0 && (
+          <div style={{
+            marginBottom: 20, padding: '14px 16px',
+            background: 'rgba(200,169,110,0.08)',
+            border: '1px solid rgba(200,169,110,0.3)',
+            borderRadius: 10,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+              <span style={{ fontSize: 16 }}>⭐</span>
+              <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: 14 }}>
+                {pendingMastery.length} song{pendingMastery.length !== 1 ? 's' : ''} awaiting mastery approval
+              </span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {pendingMastery.map((item: any, i: number) => (
+                <div key={i} style={{
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  padding: '8px 12px', background: 'var(--bg-card)',
+                  borderRadius: 7, border: '1px solid var(--border)', gap: 10,
+                }}>
+                  <div style={{ fontSize: 13, color: 'var(--text-primary)', minWidth: 0 }}>
+                    <span style={{ fontWeight: 500 }}>{item.student?.name?.replace(/__test__/g, '').trim()}</span>
+                    <span style={{ color: 'var(--text-muted)', margin: '0 6px' }}>→</span>
+                    <span>{item.song?.title}{item.song?.artist ? ` — ${item.song.artist}` : ''}</span>
+                  </div>
+                  <button
+                    className="btn btn-primary btn-sm"
+                    style={{ flexShrink: 0 }}
+                    onClick={async (e) => {
+                      e.stopPropagation()
+                      const res = await fetch('/api/mastery', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ student_id: item.student_id, song_id: item.song_id }),
+                      })
+                      if (res.ok) { toast('✓ Mastery approved — +100 XP!'); loadStudents() }
+                      else toast('Approval failed', 'error')
+                    }}
+                  >
+                    ✓ Approve
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Tabs */}
         <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', marginBottom: 16 }}>
@@ -209,6 +265,16 @@ export default function AdminPage() {
                   </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                  {(student as any).pending_mastery > 0 && (
+                    <span style={{
+                      fontSize: 11, fontFamily: 'sans-serif', fontWeight: 600,
+                      background: 'rgba(200,169,110,0.15)', color: 'var(--accent)',
+                      border: '1px solid rgba(200,169,110,0.3)',
+                      padding: '2px 8px', borderRadius: 20,
+                    }}>
+                      ⭐ {(student as any).pending_mastery}
+                    </span>
+                  )}
                   {student.belt_system_active && student.current_streak > 0 && (
                     <span style={{ fontSize: 12, color: 'var(--accent)', fontFamily: 'sans-serif' }} className="hide-mobile">
                       🔥 {student.current_streak}d

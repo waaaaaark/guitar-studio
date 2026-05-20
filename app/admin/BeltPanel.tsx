@@ -5,6 +5,7 @@ import { format } from 'date-fns'
 import { BeltDisplay, BeltVisual } from '@/lib/BeltDisplay'
 import { useToast } from '@/lib/toast'
 import { STRIPE_XP, BELT_ORDER, type Belt, type StudentProfile } from '@/lib/supabase'
+import RequirementsChecklist from './RequirementsChecklist'
 
 type Props = {
   student: any
@@ -20,11 +21,16 @@ export default function BeltPanel({ student, repertoire, onStudentUpdated }: Pro
   const [xpAmount, setXpAmount] = useState('')
   const [xpReason, setXpReason] = useState('')
   const [savingXP, setSavingXP] = useState(false)
-  const [activeTab, setActiveTab] = useState<'overview' | 'mastery' | 'history'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'requirements' | 'mastery' | 'history'>('overview')
   const [showPlacement, setShowPlacement] = useState(false)
   const [placementBelt, setPlacementBelt] = useState<Belt>(student.belt as Belt)
   const [placementStripes, setPlacementStripes] = useState<number>(student.belt_stripes)
   const [savingPlacement, setSavingPlacement] = useState(false)
+  const [showCertModal, setShowCertModal] = useState(false)
+  const [certType, setCertType] = useState<'belt' | 'stripe'>('belt')
+  const [certGenerating, setCertGenerating] = useState(false)
+  const [teacherName, setTeacherName] = useState('Brendan')
+  const [studioName, setStudioName] = useState('Guitar Studio')
 
   useEffect(() => {
     async function load() {
@@ -91,6 +97,27 @@ export default function BeltPanel({ student, repertoire, onStudentUpdated }: Pro
     }
   }
 
+  async function generateCert(type: 'belt' | 'stripe') {
+    setCertGenerating(true)
+    try {
+      const { generateCertificate } = await import('@/lib/certificate')
+      await generateCertificate({
+        studentName: student.name.replace(/__test__/g, '').trim(),
+        belt: student.belt,
+        stripes: student.belt_stripes,
+        certType: type,
+        teacherName,
+        studioName,
+        date: new Date(),
+      })
+      toast('Certificate downloaded!')
+    } catch (e) {
+      toast('Certificate generation failed', 'error')
+    }
+    setCertGenerating(false)
+    setShowCertModal(false)
+  }
+
   async function placeBelt() {
     setSavingPlacement(true)
     const res = await fetch('/api/belt-placement', {
@@ -111,6 +138,65 @@ export default function BeltPanel({ student, repertoire, onStudentUpdated }: Pro
   const stripeThreshold = STRIPE_XP[student.belt as Belt] || 0
   const eligibleSongs = repertoire.filter((r: any) => r.mastery_status === 'eligible')
   const masteredSongs = repertoire.filter((r: any) => r.mastery_status === 'mastered')
+
+  if (showCertModal) {
+    return (
+      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 16 }}
+        onClick={e => { if (e.target === e.currentTarget) setShowCertModal(false) }}>
+        <div className="card admin-sans" style={{ width: '100%', maxWidth: 420, padding: 24 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+            <h2 style={{ fontSize: 17, fontWeight: 700, color: 'var(--text-primary)' }}>Print Certificate</h2>
+            <button onClick={() => setShowCertModal(false)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 22, cursor: 'pointer' }}>×</button>
+          </div>
+
+          <div style={{ marginBottom: 16, padding: 14, background: 'var(--bg-elevated)', borderRadius: 8, border: '1px solid var(--border)' }}>
+            <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 6 }}>Student</div>
+            <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>{student.name.replace(/__test__/g, '').trim()}</div>
+            <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>{student.belt} Belt · {student.belt_stripes}/4 stripes</div>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 20 }}>
+            <div>
+              <label>Certificate type</label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {(['belt', 'stripe'] as const).map(t => (
+                  <button key={t} onClick={() => setCertType(t)} style={{
+                    flex: 1, padding: '10px', borderRadius: 8, cursor: 'pointer',
+                    background: certType === t ? 'var(--accent)' : 'var(--bg-elevated)',
+                    color: certType === t ? '#fff' : 'var(--text-secondary)',
+                    border: `1px solid ${certType === t ? 'var(--accent)' : 'var(--border)'}`,
+                    fontFamily: 'inherit', fontSize: 14, fontWeight: certType === t ? 600 : 400,
+                    transition: 'all 0.15s',
+                  }}>
+                    {t === 'belt' ? '🥋 Belt Promotion' : '⭐ Stripe Award'}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label>Your name (for signature)</label>
+              <input value={teacherName} onChange={e => setTeacherName(e.target.value)} placeholder="Instructor name" />
+            </div>
+            <div>
+              <label>Studio name</label>
+              <input value={studioName} onChange={e => setStudioName(e.target.value)} placeholder="Studio name" />
+            </div>
+          </div>
+
+          <div style={{ padding: 12, background: 'var(--bg-elevated)', borderRadius: 6, border: '1px solid var(--border)', fontSize: 12, color: 'var(--text-muted)', marginBottom: 16 }}>
+            Generates a landscape letter-size PDF ready to print and sign. The certificate is styled with the {student.belt.toLowerCase()} belt colors.
+          </div>
+
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+            <button className="btn btn-ghost" onClick={() => setShowCertModal(false)}>Cancel</button>
+            <button className="btn btn-primary" onClick={() => generateCert(certType)} disabled={certGenerating || !teacherName.trim()}>
+              {certGenerating ? 'Generating…' : '↓ Download PDF'}
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   if (!student.belt_system_active) {
     return (
@@ -145,6 +231,9 @@ export default function BeltPanel({ student, repertoire, onStudentUpdated }: Pro
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           <button className="btn btn-ghost btn-sm" onClick={() => { setShowPlacement(p => !p); setPlacementBelt(student.belt); setPlacementStripes(student.belt_stripes) }}>
             ✏ Place Belt
+          </button>
+          <button className="btn btn-ghost btn-sm" onClick={() => setShowCertModal(true)}>
+            🎓 Certificate
           </button>
           {student.stripe_eligible && (
             <button className="btn btn-primary btn-sm" onClick={awardStripe}>
@@ -190,7 +279,7 @@ export default function BeltPanel({ student, repertoire, onStudentUpdated }: Pro
 
       {/* Tabs */}
       <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', paddingLeft: 4 }}>
-        {(['overview', 'mastery', 'history'] as const).map(tab => (
+        {(['overview', 'requirements', 'mastery', 'history'] as const).map(tab => (
           <button key={tab} onClick={() => setActiveTab(tab)} style={{
             background: 'none', border: 'none', cursor: 'pointer',
             padding: '8px 14px', fontSize: 13, fontFamily: 'sans-serif',
@@ -371,6 +460,14 @@ export default function BeltPanel({ student, repertoire, onStudentUpdated }: Pro
               </div>
             )}
           </div>
+        )}
+
+        {/* Requirements tab */}
+        {activeTab === 'requirements' && (
+          <RequirementsChecklist
+            student={student}
+            onStudentUpdated={onStudentUpdated}
+          />
         )}
 
         {/* History tab */}

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { BeltDisplay } from '@/lib/BeltDisplay'
 import PracticeTimer from '@/lib/PracticeTimer'
 import { type Belt, type StudentProfile, STRIPE_XP } from '@/lib/supabase'
+import CurriculumChecklist from './CurriculumChecklist'
 
 type Props = {
   token: string
@@ -62,16 +63,29 @@ export default function StudentInteractive({ token, student: initialStudent, rep
 
       {/* Belt tab */}
       {activeTab === 'belt' && student.belt_system_active && (
-        <BeltDisplay
-          belt={student.belt as Belt}
-          stripes={student.belt_stripes}
-          profile={student.student_profile as StudentProfile}
-          totalXP={student.total_xp}
-          currentStripeXP={student.current_stripe_xp}
-          stripeThreshold={stripeThreshold}
-          stripeEligible={student.stripe_eligible}
-          beltEligible={student.belt_eligible}
-        />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <BeltDisplay
+            belt={student.belt as Belt}
+            stripes={student.belt_stripes}
+            profile={student.student_profile as StudentProfile}
+            totalXP={student.total_xp}
+            currentStripeXP={student.current_stripe_xp}
+            stripeThreshold={stripeThreshold}
+            stripeEligible={student.stripe_eligible}
+            beltEligible={student.belt_eligible}
+          />
+          <div>
+            <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--accent)', marginBottom: 12, fontFamily: 'sans-serif' }}>
+              What you're working toward
+            </div>
+            <CurriculumChecklist
+              token={token}
+              belt={student.belt as Belt}
+              stripes={student.belt_stripes}
+              beltSystemActive={student.belt_system_active}
+            />
+          </div>
+        </div>
       )}
 
       {/* Practice tab */}

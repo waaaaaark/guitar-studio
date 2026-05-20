@@ -1,17 +1,15 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-// Inline to avoid supabase proxy client-side
+import { useToast } from '@/lib/toast'
+import { format } from 'date-fns'
+
 const RESOURCE_ICONS: Record<string, string> = {
   PDF: '📄', Video: '🎬', Article: '📰',
   'Chord Chart': '🎸', Exercise: '🏋️', 'Backing Track': '🎵', Other: '📎',
 }
-import { useToast } from '@/lib/toast'
-import { format } from 'date-fns'
 
-type Props = {
-  studentId: string
-}
+type Props = { studentId: string }
 
 export default function ResourceAssignPanel({ studentId }: Props) {
   const { toast } = useToast()
@@ -20,8 +18,7 @@ export default function ResourceAssignPanel({ studentId }: Props) {
   const [loading, setLoading] = useState(true)
   const [showPicker, setShowPicker] = useState(false)
   const [search, setSearch] = useState('')
-  const [noteFor, setNoteFor] = useState<string | null>(null)
-  const [noteText, setNoteText] = useState('')
+  const [assigning, setAssigning] = useState<string | null>(null)
 
   async function load() {
     const [assignedRes, allRes] = await Promise.all([
@@ -30,20 +27,22 @@ export default function ResourceAssignPanel({ studentId }: Props) {
     ])
     const assignedData = await assignedRes.json()
     const allData = await allRes.json()
-    setAssigned(assignedData)
-    setAllResources(allData.filter((r: any) => r.active))
+    setAssigned(Array.isArray(assignedData) ? assignedData : [])
+    setAllResources(Array.isArray(allData) ? allData.filter((r: any) => r.active) : [])
     setLoading(false)
   }
 
   useEffect(() => { load() }, [studentId])
 
-  async function assign(resourceId: string, note?: string) {
+  async function assign(resourceId: string) {
+    setAssigning(resourceId)
     const res = await fetch('/api/resources/assign', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ student_id: studentId, resource_id: resourceId, note }),
+      body: JSON.stringify({ student_id: studentId, resource_id: resourceId }),
     })
-    if (res.ok) { toast('Resource assigned'); load(); setShowPicker(false) }
+    setAssigning(null)
+    if (res.ok) { toast('Resource assigned'); load() }
     else toast('Failed to assign', 'error')
   }
 
@@ -54,11 +53,12 @@ export default function ResourceAssignPanel({ studentId }: Props) {
       body: JSON.stringify({ student_id: studentId, resource_id: resourceId }),
     })
     if (res.ok) { toast('Resource removed'); load() }
+    else toast('Failed to remove', 'error')
   }
 
   const assignedIds = new Set(assigned.map((a: any) => a.resource_id))
   const unassigned = allResources.filter(r => !assignedIds.has(r.id))
-  const filteredUnassigned = unassigned.filter(r =>
+  const filtered = unassigned.filter(r =>
     !search ||
     r.title.toLowerCase().includes(search.toLowerCase()) ||
     r.resource_type.toLowerCase().includes(search.toLowerCase()) ||
@@ -69,12 +69,15 @@ export default function ResourceAssignPanel({ studentId }: Props) {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>Resources</h2>
-        <button className="btn btn-ghost btn-sm" onClick={() => setShowPicker(p => !p)}>
+        <button
+          className="btn btn-ghost btn-sm"
+          onClick={() => { setShowPicker(p => !p); setSearch('') }}
+        >
           {showPicker ? '↑ Close' : '+ Assign'}
         </button>
       </div>
 
-      {/* Resource picker */}
+      {/* Picker */}
       {showPicker && (
         <div className="card" style={{ padding: 14, marginBottom: 14 }}>
           <input
@@ -84,48 +87,37 @@ export default function ResourceAssignPanel({ studentId }: Props) {
             onChange={e => setSearch(e.target.value)}
             style={{ marginBottom: 10 }}
           />
-          {filteredUnassigned.length === 0 ? (
+          {unassigned.length === 0 ? (
             <div style={{ color: 'var(--text-muted)', fontSize: 13, textAlign: 'center', padding: '10px 0' }}>
-              {unassigned.length === 0 ? 'All resources already assigned.' : 'No resources match.'}
+              All resources already assigned.
+            </div>
+          ) : filtered.length === 0 ? (
+            <div style={{ color: 'var(--text-muted)', fontSize: 13, textAlign: 'center', padding: '10px 0' }}>
+              No resources match.
             </div>
           ) : (
             <div style={{ maxHeight: 240, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {filteredUnassigned.map(r => (
+              {filtered.map(r => (
                 <div key={r.id} style={{
                   display: 'flex', alignItems: 'center', gap: 10,
                   padding: '9px 12px', borderRadius: 7,
                   border: '1px solid var(--border)', background: 'var(--bg)',
                 }}>
-                  <span style={{ fontSize: 16 }}>{RESOURCE_ICONS[r.resource_type]}</span>
+                  <span style={{ fontSize: 16, flexShrink: 0 }}>{RESOURCE_ICONS[r.resource_type] || '📎'}</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 500 }}>{r.title}</div>
+                    <div style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {r.title}
+                    </div>
                     <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{r.resource_type}</div>
                   </div>
-                  {noteFor === r.id ? (
-                    <div style={{ display: 'flex', gap: 6, flex: 1 }}>
-                      <input
-                        autoFocus
-                        value={noteText}
-                        onChange={e => setNoteText(e.target.value)}
-                        placeholder="Note for student (optional)…"
-                        style={{ flex: 1, fontSize: 12 }}
-                        onKeyDown={e => { if (e.key === 'Enter') assign(r.id, noteText || undefined) }}
-                      />
-                      <button className="btn btn-primary btn-sm" onClick={() => assign(r.id, noteText || undefined)}>
-                        Assign
-                      </button>
-                      <button className="btn btn-ghost btn-sm" onClick={() => { setNoteFor(null); setNoteText('') }}>
-                        ✕
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      className="btn btn-ghost btn-sm"
-                      onClick={() => { setNoteFor(r.id); setNoteText('') }}
-                    >
-                      + Assign
-                    </button>
-                  )}
+                  <button
+                    className="btn btn-primary btn-sm"
+                    style={{ flexShrink: 0 }}
+                    disabled={assigning === r.id}
+                    onClick={() => assign(r.id)}
+                  >
+                    {assigning === r.id ? '…' : 'Assign'}
+                  </button>
                 </div>
               ))}
             </div>
@@ -133,7 +125,7 @@ export default function ResourceAssignPanel({ studentId }: Props) {
         </div>
       )}
 
-      {/* Assigned resources */}
+      {/* Assigned list */}
       {loading ? (
         <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>Loading…</div>
       ) : assigned.length === 0 ? (
@@ -151,22 +143,21 @@ export default function ResourceAssignPanel({ studentId }: Props) {
                 background: 'var(--bg-card)', border: '1px solid var(--border)',
                 display: 'flex', alignItems: 'center', gap: 10,
               }}>
-                <span style={{ fontSize: 16 }}>{RESOURCE_ICONS[r.resource_type]}</span>
+                <span style={{ fontSize: 16, flexShrink: 0 }}>{RESOURCE_ICONS[r.resource_type] || '📎'}</span>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 500 }}>{r.title}</div>
-                  {a.note && (
-                    <div style={{ fontSize: 11, color: 'var(--accent)', marginTop: 2 }}>{a.note}</div>
-                  )}
+                  <div style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {r.title}
+                  </div>
                   <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
-                    Assigned {format(new Date(a.assigned_at), 'MMM d, yyyy')}
+                    {format(new Date(a.assigned_at), 'MMM d, yyyy')}
                   </div>
                 </div>
                 <a href={r.url} target="_blank" rel="noopener"
-                  className="btn btn-ghost btn-sm" style={{ padding: '4px 8px' }}>↗</a>
+                  className="btn btn-ghost btn-sm" style={{ padding: '4px 8px', flexShrink: 0 }}>↗</a>
                 <button
                   className="btn btn-danger btn-sm"
                   onClick={() => unassign(r.id)}
-                  style={{ padding: '4px 8px' }}
+                  style={{ padding: '4px 8px', flexShrink: 0 }}
                 >✕</button>
               </div>
             )

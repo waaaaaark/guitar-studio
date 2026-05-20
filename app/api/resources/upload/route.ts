@@ -3,6 +3,7 @@ import { checkAdminAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50MB
+const BUCKET = process.env.SUPABASE_STORAGE_BUCKET || 'resources'
 
 export async function POST(req: NextRequest) {
   const authed = await checkAdminAuth()
@@ -22,28 +23,36 @@ export async function POST(req: NextRequest) {
   }
 
   // Generate a unique path
-  const ext = file.name.split('.').pop()?.toLowerCase() || 'bin'
   const timestamp = Date.now()
-  const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_')
-  const filePath = `${timestamp}_${safeName}`
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+  const filePath = `uploads/${timestamp}_${safeName}`
 
   // Upload to Supabase storage
   const buffer = await file.arrayBuffer()
-  const { error: uploadError } = await supabase.storage
-    .from('resources')
+  const { data: uploadData, error: uploadError } = await supabase.storage
+    .from(BUCKET)
     .upload(filePath, buffer, {
       contentType: file.type || 'application/octet-stream',
       upsert: false,
     })
 
   if (uploadError) {
-    return NextResponse.json({ error: `Upload failed: ${uploadError.message}` }, { status: 500 })
+    console.error('Storage upload error:', uploadError)
+    return NextResponse.json({
+      error: `Upload failed: ${uploadError.message}. Make sure the "${BUCKET}" bucket exists in Supabase Storage and is set to public.`
+    }, { status: 500 })
   }
 
-  // Get public URL
-  const { data: urlData } = supabase.storage
-    .from('resources')
-    .getPublicUrl(filePath)
+  // Build public URL — works with both old and new Supabase URL formats
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+  // Strip trailing slash
+  const baseUrl = supabaseUrl.replace(/\/$/, '')
+  // Supabase storage public URL format
+  const publicUrl = `${baseUrl}/storage/v1/object/public/${BUCKET}/${filePath}`
+
+  // Also try the SDK method as backup
+  const { data: sdkUrlData } = supabase.storage.from(BUCKET).getPublicUrl(filePath)
+  const finalUrl = sdkUrlData?.publicUrl || publicUrl
 
   // Save resource record
   const { data, error } = await supabase
@@ -53,7 +62,7 @@ export async function POST(req: NextRequest) {
       description: description?.trim() || null,
       resource_type: resource_type || 'Other',
       source_type: 'upload',
-      url: urlData.publicUrl,
+      url: finalUrl,
       file_path: filePath,
       file_name: file.name,
       file_size: file.size,
@@ -63,8 +72,7 @@ export async function POST(req: NextRequest) {
     .single()
 
   if (error) {
-    // Clean up storage if DB insert fails
-    await supabase.storage.from('resources').remove([filePath])
+    await supabase.storage.from(BUCKET).remove([filePath])
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 

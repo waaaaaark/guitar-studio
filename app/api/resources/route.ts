@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { checkAdminAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 
+const BUCKET = process.env.SUPABASE_STORAGE_BUCKET || 'resources'
+
 // GET all resources (admin) or assigned resources for a student (by token)
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
@@ -104,7 +106,7 @@ export async function DELETE(req: NextRequest) {
 
   // Delete from storage if it's an upload
   if (resource?.source_type === 'upload' && resource?.file_path) {
-    await supabase.storage.from('resources').remove([resource.file_path])
+    await supabase.storage.from(BUCKET).remove([resource.file_path])
   }
 
   const { error } = await supabase.from('resources').delete().eq('id', id)

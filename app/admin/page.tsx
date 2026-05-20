@@ -128,7 +128,7 @@ export default function AdminPage() {
           <span style={{ color: 'var(--accent)', fontWeight: 700, fontSize: 15 }}>🎸 Studio</span>
           <div style={{ display: 'flex' }}>
             {(['Students', 'Songs', 'Tips', 'Resources'] as const).map(tab => (
-              <button key={tab} onClick={() => setView(tab === 'Students' ? 'roster' : 'songs')} style={{
+              <button key={tab} onClick={() => setView(tab === 'Students' ? 'roster' : tab === 'Songs' ? 'songs' : tab === 'Tips' ? 'tips' : 'resources')} style={{
                 background: 'none', border: 'none', cursor: 'pointer',
                 padding: '4px 12px', fontSize: 14, fontFamily: 'inherit',
                 color: (tab === 'Students' ? currentView === 'roster' : tab === 'Songs' ? currentView === 'songs' : tab === 'Tips' ? currentView === 'tips' : currentView === 'resources') ? 'var(--text-primary)' : 'var(--text-muted)',

@@ -5,9 +5,10 @@ import { useState } from 'react'
 type Props = {
   profile: string
   beltActive: boolean
+  label?: string
 }
 
-export default function HowItWorksStudent({ profile, beltActive }: Props) {
+export default function HowItWorksStudent({ profile, beltActive, label }: Props) {
   const [open, setOpen] = useState(false)
   const isAdult = profile === 'Adult'
   const isChild = profile === 'Child'
@@ -27,7 +28,7 @@ export default function HowItWorksStudent({ profile, beltActive }: Props) {
         onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}
       >
         <span style={{ fontSize: 13, color: 'var(--text-secondary)', fontWeight: 500 }}>
-          {isChild ? '❓ How does this work?' : 'How this page works'}
+          {label || (isChild ? '❓ How does this work?' : 'How this page works')}
         </span>
         <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{open ? '↑' : '↓'}</span>
       </button>

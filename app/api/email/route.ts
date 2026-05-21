@@ -150,7 +150,7 @@ export async function POST(req: NextRequest) {
 <body>
   <div class="wrap">
     <div class="header">
-      <div class="eyebrow">Guitar Studio · Lesson Notes</div>
+      <div class="eyebrow">Brendan's Guitar Studio · Lesson Notes</div>
       <h1>Hey ${displayName},</h1>
       <div class="date">${lessonDate}</div>
     </div>

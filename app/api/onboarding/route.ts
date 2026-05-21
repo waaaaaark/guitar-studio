@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
     ? `Welcome to Guitar Studio! This is your very own music page where you can see everything we work on together.`
     : isTeen
     ? `Welcome to Guitar Studio — your personal lesson hub.`
-    : `Welcome to Guitar Studio. I've set up a personal page for you to track your lesson notes and progress.`
+    : `I've set up a page for you to track our lesson notes, songs, and resources.`
 
   const tabsExplain = isAdult
     ? `Your page has a few sections: <strong>Lessons</strong> shows your notes from each session and your song repertoire. <strong>Practice</strong> is where you can log practice time and mark songs you've been working on. <strong>Resources</strong> is where I'll share any materials relevant to your playing.`
@@ -85,9 +85,9 @@ export async function POST(req: NextRequest) {
 <body>
   <div class="wrap">
     <div class="header">
-      <div class="eyebrow">Guitar Studio</div>
+      <div class="eyebrow">Brendan's Guitar Studio</div>
       <h1>${greeting}</h1>
-      <div class="sub">Your personal lesson page is ready</div>
+
     </div>
     <div class="body">
       <p>${introLine}</p>

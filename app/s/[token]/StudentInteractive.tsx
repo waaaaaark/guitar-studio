@@ -43,7 +43,6 @@ export default function StudentInteractive({ token, student: initialStudent, les
 
   return (
     <div>
-      <HowItWorksStudent profile={student.student_profile} beltActive={beltActive} />
       {/* Tab bar */}
       <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', marginBottom: 24 }}>
         {tabs.map(tab => (
@@ -265,6 +264,10 @@ export default function StudentInteractive({ token, student: initialStudent, les
       {activeTab === 'resources' && (
         <StudentResources token={token} showEmpty />
       )}
+      {/* How does this page work - at the bottom */}
+      <div style={{ marginTop: 32 }}>
+        <HowItWorksStudent profile={student.student_profile} beltActive={beltActive} label="How does this page work?" />
+      </div>
     </div>
   )
 }

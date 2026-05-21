@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
 <body>
   <div class="wrap">
     <div class="header">
-      <div class="eyebrow">Guitar Studio</div>
+      <div class="eyebrow">Brendan's Guitar Studio</div>
       <h1>${subject}</h1>
     </div>
     <div class="body">

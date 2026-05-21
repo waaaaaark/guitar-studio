@@ -4,6 +4,7 @@ import { ThemeToggle } from '@/lib/theme'
 import ExportButton from './ExportButton'
 import StudentInteractive from './StudentInteractive'
 import { STRIPE_XP, type Belt } from '@/lib/supabase'
+import PageViewTracker from './PageViewTracker'
 
 async function getStudentData(token: string) {
   const { data: student } = await supabase
@@ -59,6 +60,7 @@ export default async function StudentPage({ params }: { params: Promise<{ token:
         </div>
       </header>
 
+      <PageViewTracker token={token} />
       <main style={{ maxWidth: 680, margin: '0 auto', padding: '24px 20px 80px' }}>
         <StudentInteractive
           token={token}

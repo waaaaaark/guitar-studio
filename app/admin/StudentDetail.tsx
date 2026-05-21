@@ -8,6 +8,7 @@ import { ThemeToggle } from '@/lib/theme'
 import { useToast } from '@/lib/toast'
 import BeltPanel from './BeltPanel'
 import ResourceAssignPanel from './ResourceAssignPanel'
+import RepertoireAssignPanel from './RepertoireAssignPanel'
 
 function getInitials(name: string) {
   const parts = name.trim().split(/\s+/)
@@ -286,50 +287,12 @@ export default function StudentDetail({ student: initialStudent, onBack, onStude
 
           {/* Repertoire + Resources sidebar */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-            <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>Repertoire</h2>
-              {data?.repertoire?.length > 0 && (
-                <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{data.repertoire.length} songs</span>
-              )}
-            </div>
-            <div className="card" style={{ overflow: 'hidden' }}>
-              {!data?.repertoire?.length ? (
-                <div style={{ padding: 16, color: 'var(--text-muted)', fontSize: 13 }}>No songs yet.</div>
-              ) : (
-                <>
-                  <div style={{
-                    maxHeight: data.repertoire.length > 8 ? '392px' : 'none',
-                    overflowY: data.repertoire.length > 8 ? 'auto' : 'visible',
-                    overscrollBehavior: 'contain',
-                  }}>
-                    {data.repertoire.map((item: any, i: number) => (
-                      <div key={item.song.id} style={{
-                        padding: '10px 14px',
-                        borderBottom: i < data.repertoire.length - 1 ? '1px solid var(--border)' : 'none',
-                      }}>
-                        <div style={{ color: 'var(--text-primary)', fontSize: 13, wordBreak: 'break-word' }}>{item.song.title}</div>
-                        {item.song.artist && <div style={{ color: 'var(--text-muted)', fontSize: 11, marginTop: 2 }}>{item.song.artist}</div>}
-                        <div style={{ color: 'var(--text-muted)', fontSize: 11, marginTop: 2 }}>
-                          {format(new Date(item.first_worked_on + 'T12:00:00'), 'MMM yyyy')}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  {data.repertoire.length > 8 && (
-                    <div style={{
-                      padding: '7px 14px', borderTop: '1px solid var(--border)',
-                      fontSize: 11, color: 'var(--text-muted)', textAlign: 'center',
-                      background: 'var(--bg-elevated)',
-                    }}>
-                      Scroll to see all {data.repertoire.length} songs
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-
-            </div>
+            <RepertoireAssignPanel
+              studentId={student.id}
+              repertoire={data?.repertoire || []}
+              allSongs={allSongs}
+              onUpdated={load}
+            />
             {/* Resource assignment */}
             <ResourceAssignPanel studentId={student.id} />
           </div>

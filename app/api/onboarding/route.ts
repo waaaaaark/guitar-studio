@@ -8,11 +8,10 @@ export async function POST(req: NextRequest) {
 
   const { student_id } = await req.json()
 
-  const { data: student } = await supabase
-    .from('students')
-    .select('*')
-    .eq('id', student_id)
-    .single()
+  const [{ data: student }, { data: settings }] = await Promise.all([
+    supabase.from('students').select('*').eq('id', student_id).single(),
+    supabase.from('app_settings').select('*').eq('id', 1).single(),
+  ])
 
   if (!student) return NextResponse.json({ error: 'Student not found' }, { status: 404 })
   if (!student.email) return NextResponse.json({ error: 'No email on file' }, { status: 400 })
@@ -20,6 +19,7 @@ export async function POST(req: NextRequest) {
   const { Resend } = await import('resend')
   const resend = new Resend(process.env.RESEND_API_KEY)
 
+  const studioName: string = settings?.studio_name || "Brendan's Guitar Studio"
   const studentUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/s/${student.token}`
   const displayName = student.name.replace(/__test__/g, '').trim()
   const firstName = displayName.split(' ')[0]
@@ -28,7 +28,16 @@ export async function POST(req: NextRequest) {
   const isAdult = student.student_profile === 'Adult'
   const beltActive = student.belt_system_active
 
-  // Tone varies by age profile
+  const defaultIntro = settings?.onboarding_email_intro || "I've set up a page for you to track our lesson notes, songs, and resources."
+  const defaultClosing = settings?.onboarding_email_closing || "Bookmark this link — it's yours and doesn't require any login. See you at our next lesson!"
+
+  function applyTokens(template: string): string {
+    return template.replace(/\{\{(\w+)\}\}/g, (_: string, key: string) => {
+      const map: Record<string, string> = { name: firstName, url: studentUrl, studio: studioName }
+      return map[key] || ''
+    })
+  }
+
   const greeting = isChild
     ? `Hey ${firstName}! 🎸`
     : isTeen
@@ -36,10 +45,10 @@ export async function POST(req: NextRequest) {
     : `Hi ${firstName},`
 
   const introLine = isChild
-    ? `Welcome to Guitar Studio! This is your very own music page where you can see everything we work on together.`
+    ? `Welcome to ${studioName}! This is your very own music page where you can see everything we work on together.`
     : isTeen
-    ? `Welcome to Guitar Studio — your personal lesson hub.`
-    : `I've set up a page for you to track our lesson notes, songs, and resources.`
+    ? `Welcome to your personal lesson hub for ${studioName}.`
+    : applyTokens(defaultIntro)
 
   const tabsExplain = isAdult
     ? `Your page has a few sections: <strong>Lessons</strong> shows your notes from each session and your song repertoire. <strong>Practice</strong> is where you can log practice time and mark songs you've been working on. <strong>Resources</strong> is where I'll share any materials relevant to your playing.`
@@ -57,7 +66,11 @@ export async function POST(req: NextRequest) {
 
   const bookmarkLine = isChild
     ? `Save this link or ask a parent to bookmark it for you!`
-    : `Bookmark this link — it's yours and doesn't require any login.`
+    : applyTokens(defaultClosing)
+
+  const subject = isChild
+    ? `Welcome to ${studioName}, ${firstName}! 🎸`
+    : `Your ${studioName} page is ready`
 
   const html = `
 <!DOCTYPE html>
@@ -72,7 +85,6 @@ export async function POST(req: NextRequest) {
     .header { background: #1a1814; padding: 28px 28px 22px; }
     .eyebrow { font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; color: #c8a96e; margin-bottom: 10px; }
     .header h1 { font-size: 24px; font-weight: 600; color: #f0ece4; margin-bottom: 4px; }
-    .header .sub { font-size: 14px; color: #9a9588; }
     .body { padding: 28px 28px 24px; }
     p { color: #2a2622; line-height: 1.75; font-size: 15px; margin-bottom: 16px; }
     .link-box { background: #f5f0e6; border: 1px solid #e8d9b0; border-left: 3px solid #c8a96e; border-radius: 6px; padding: 16px 18px; margin: 20px 0; }
@@ -85,9 +97,8 @@ export async function POST(req: NextRequest) {
 <body>
   <div class="wrap">
     <div class="header">
-      <div class="eyebrow">Brendan's Guitar Studio</div>
+      <div class="eyebrow">${studioName}</div>
       <h1>${greeting}</h1>
-
     </div>
     <div class="body">
       <p>${introLine}</p>
@@ -99,20 +110,14 @@ export async function POST(req: NextRequest) {
       </div>
       <p>${bookmarkLine}</p>
       <hr class="divider">
-      <div class="footer">
-        Your page updates after each lesson. See you soon!
-      </div>
+      <div class="footer">Your page updates after each lesson.</div>
     </div>
   </div>
 </body>
 </html>`
 
-  const subject = isChild
-    ? `Welcome to Guitar Studio, ${firstName}! 🎸`
-    : `Your Guitar Studio page is ready`
-
   const { error } = await resend.emails.send({
-    from: process.env.RESEND_FROM_EMAIL || 'Guitar Studio <lessons@yourdomain.com>',
+    from: process.env.RESEND_FROM_EMAIL || `${studioName} <lessons@yourdomain.com>`,
     to: student.email,
     subject,
     html,

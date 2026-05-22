@@ -16,6 +16,7 @@ import CurriculumEditor from './CurriculumEditor'
 import HowItWorksAdmin from './HowItWorksAdmin'
 import SettingsPage from './SettingsPage'
 import AnalyticsPage from './AnalyticsPage'
+import MoreMenu from './MoreMenu'
 
 function getInitials(name: string) {
   const parts = name.trim().split(/\s+/)
@@ -27,7 +28,7 @@ export default function AdminPage() {
   const { toast } = useToast()
   const [students, setStudents] = useState<Student[]>([])
   const [loading, setLoading] = useState(true)
-  const [view, setView] = useState<'roster' | 'student' | 'songs' | 'tips' | 'resources' | 'curriculum' | 'settings' | 'analytics'>('roster')
+  const [view, setView] = useState<'roster' | 'student' | 'songs' | 'tips' | 'resources' | 'curriculum' | 'settings' | 'analytics' | 'more'>('roster')
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null)
   const [showAddModal, setShowAddModal] = useState(false)
   const [showImport, setShowImport] = useState(false)
@@ -107,8 +108,17 @@ export default function AdminPage() {
   if (currentView === 'tips') return <TipsManager onBack={() => setView('roster')} />
   if (currentView === 'resources') return <ResourcesLibrary onBack={() => setView('roster')} />
   if (currentView === 'curriculum') return <CurriculumEditor onBack={() => setView('roster')} />
-  if (currentView === 'settings') return <SettingsPage onBack={() => setView('roster')} />
-  if (currentView === 'analytics') return <AnalyticsPage onBack={() => setView('roster')} />
+  if (currentView === 'settings') return <SettingsPage onBack={() => setView('more')} />
+  if (currentView === 'analytics') return <AnalyticsPage onBack={() => setView('more')} />
+  if (currentView === 'tips') return <TipsManager onBack={() => setView('more')} />
+  if (currentView === 'curriculum') return <CurriculumEditor onBack={() => setView('more')} />
+  if (currentView === 'more') return (
+    <MoreMenu
+      onNavigate={(v) => setView(v)}
+      onBack={() => setView('roster')}
+      onLogout={logout}
+    />
+  )
 
   const tabs = [
     { key: 'active', label: 'Active', count: activeStudents.length },
@@ -131,24 +141,39 @@ export default function AdminPage() {
         justifyContent: 'space-between', height: 54,
         position: 'sticky', top: 0, zIndex: 10,
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <span className="hide-mobile" style={{ color: 'var(--accent)', fontWeight: 700, fontSize: 14, marginRight: 8, whiteSpace: 'nowrap' }}>🎸</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <span className="hide-mobile" style={{ color: 'var(--accent)', fontWeight: 700, fontSize: 14, marginRight: 6, flexShrink: 0 }}>🎸</span>
           <div style={{ display: 'flex' }}>
-            {(['Students', 'Songs', 'Tips', 'Resources', 'Curriculum', 'Analytics', 'Settings'] as const).map(tab => (
-              <button key={tab} onClick={() => setView(tab === 'Students' ? 'roster' : tab === 'Songs' ? 'songs' : tab === 'Tips' ? 'tips' : 'resources')} style={{
+            {([
+              { label: 'Students', view: 'roster' },
+              { label: 'Songs', view: 'songs' },
+              { label: 'Resources', view: 'resources' },
+            ] as const).map(tab => (
+              <button key={tab.view} onClick={() => setView(tab.view as any)} style={{
                 background: 'none', border: 'none', cursor: 'pointer',
-                padding: '4px 8px', fontSize: 13, fontFamily: 'inherit',
-                color: ({'Students':'roster','Songs':'songs','Tips':'tips','Resources':'resources','Curriculum':'curriculum','Analytics':'analytics','Settings':'settings'} as Record<string,string>)[tab] === currentView ? 'var(--text-primary)' : 'var(--text-muted)',
-                borderBottom: ({'Students':'roster','Songs':'songs','Tips':'tips','Resources':'resources','Curriculum':'curriculum','Analytics':'analytics','Settings':'settings'} as Record<string,string>)[tab] === currentView ? '2px solid var(--accent)' : '2px solid transparent',
+                padding: '4px 10px', fontSize: 13, fontFamily: 'inherit',
+                color: currentView === tab.view ? 'var(--text-primary)' : 'var(--text-muted)',
+                borderBottom: currentView === tab.view ? '2px solid var(--accent)' : '2px solid transparent',
                 marginBottom: -1, paddingBottom: 6, whiteSpace: 'nowrap',
-              }}>{tab}</button>
+              }}>{tab.label}</button>
             ))}
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <HowItWorksAdmin />
           <ThemeToggle />
-          <button onClick={logout} className="btn btn-ghost btn-sm hide-mobile">Sign out</button>
+          <button
+            onClick={() => setView('more' as any)}
+            style={{
+              background: currentView === 'more' ? 'var(--bg-elevated)' : 'transparent',
+              border: '1px solid var(--border)', borderRadius: 6,
+              width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer', fontSize: 15, transition: 'all 0.15s', flexShrink: 0,
+            }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent)' }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)' }}
+            title="More"
+          >⚙️</button>
         </div>
       </nav>
 

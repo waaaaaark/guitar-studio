@@ -179,15 +179,15 @@ export async function generateCertificate({
   const bvX = (W - bvW) / 2
 
   fill(beltRGB)
-  doc.roundedRect(bvX, bvY, bvW, bvH, 4, 4, 'F')
+  doc.rect(bvX, bvY, bvW, bvH, 'F')
   if (isWhite) {
     stroke(P.border)
     doc.setLineWidth(0.5)
-    doc.roundedRect(bvX, bvY, bvW, bvH, 4, 4)
+    doc.rect(bvX, bvY, bvW, bvH)
   }
 
   doc.setFillColor(26, 24, 20)
-  doc.roundedRect(bvX + bvW - 72, bvY, 72, bvH, 4, 4, 'F')
+  doc.rect(bvX + bvW - 72, bvY, 72, bvH, 'F')
 
   for (let i = 0; i < 4; i++) {
     const sx = bvX + bvW - 66 + i * 15

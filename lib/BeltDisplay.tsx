@@ -1,4 +1,5 @@
 'use client'
+import React, { useState } from 'react'
 
 import { BELT_COLORS, BELT_TEXT_COLORS, BELT_ORDER, type Belt, type StudentProfile } from '@/lib/supabase'
 
@@ -39,22 +40,23 @@ const RANK_NAMES: Record<StudentProfile, Record<Belt, string>> = {
 }
 
 export function BeltDisplay({ belt, stripes, profile, totalXP, currentStripeXP, stripeThreshold, stripeEligible, beltEligible, compact }: Props) {
+  const [collapsed, setCollapsed] = React.useState(() => {
+    if (typeof window === 'undefined') return false
+    return localStorage.getItem('belt-card-collapsed') === 'true'
+  })
+
+  function toggleCollapse() {
+    setCollapsed((p: boolean) => {
+      const next = !p
+      if (typeof window !== 'undefined') localStorage.setItem('belt-card-collapsed', String(next))
+      return next
+    })
+  }
   const beltColor = BELT_COLORS[belt]
   const textColor = BELT_TEXT_COLORS[belt]
   const rankName = RANK_NAMES[profile][belt]
   const isBlackBelt = belt === 'Black'
   const progress = stripeThreshold > 0 ? Math.min((currentStripeXP / stripeThreshold) * 100, 100) : 100
-
-  if (compact) {
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <BeltVisual belt={belt} stripes={stripes} size="sm" />
-        <span style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'sans-serif' }}>
-          {belt} Belt
-        </span>
-      </div>
-    )
-  }
 
   return (
     <div style={{
@@ -63,11 +65,32 @@ export function BeltDisplay({ belt, stripes, profile, totalXP, currentStripeXP, 
         : 'var(--bg-card)',
       border: `2px solid ${beltColor}`,
       borderRadius: 12,
-      padding: 20,
-      textAlign: 'center',
-      position: 'relative',
       overflow: 'hidden',
     }}>
+      {/* Collapse header */}
+      <div
+        onClick={toggleCollapse}
+        style={{
+          padding: collapsed ? '14px 18px' : '16px 18px 12px',
+          display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer',
+          textAlign: 'left',
+        }}
+      >
+        <BeltVisual belt={belt} stripes={stripes} size="sm" />
+        <div style={{ flex: 1 }}>
+          <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text-primary)', fontFamily: 'sans-serif' }}>
+            {belt} Belt · {stripes}/4 stripes
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'sans-serif', marginTop: 2 }}>
+            {totalXP.toLocaleString()} XP
+          </div>
+        </div>
+        <span style={{ color: 'var(--text-muted)', fontSize: 13, fontFamily: 'sans-serif' }}>
+          {collapsed ? '↓ Expand' : '↑ Collapse'}
+        </span>
+      </div>
+
+      {collapsed ? null : <div style={{ padding: '0 18px 18px', textAlign: 'center', position: 'relative' }}>
       {/* Background accent for Child profile */}
       {profile === 'Child' && (
         <div style={{
@@ -173,6 +196,7 @@ export function BeltDisplay({ belt, stripes, profile, totalXP, currentStripeXP, 
       <div style={{ marginTop: 12, fontSize: 12, color: 'var(--text-muted)', fontFamily: 'sans-serif' }}>
         {totalXP.toLocaleString()} total XP
       </div>
+      </div>}
     </div>
   )
 }

@@ -111,6 +111,45 @@ export default function SettingsPage({ onBack }: { onBack: () => void }) {
               </Field>
             </Section>
 
+            {/* Email Templates */}
+            <Section title="Email Templates">
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12, lineHeight: 1.6 }}>
+                Use <code style={{ background: 'var(--bg-elevated)', padding: '1px 5px', borderRadius: 3, fontSize: 11 }}>{'{{name}}'}</code>, <code style={{ background: 'var(--bg-elevated)', padding: '1px 5px', borderRadius: 3, fontSize: 11 }}>{'{{date}}'}</code>, <code style={{ background: 'var(--bg-elevated)', padding: '1px 5px', borderRadius: 3, fontSize: 11 }}>{'{{url}}'}</code>, <code style={{ background: 'var(--bg-elevated)', padding: '1px 5px', borderRadius: 3, fontSize: 11 }}>{'{{studio}}'}</code> as placeholders.
+              </div>
+              <Field label="Lesson Notes — Intro" hint="Shown above the lesson content in every lesson email">
+                <textarea
+                  value={form.lesson_email_intro || ''}
+                  onChange={e => set('lesson_email_intro', e.target.value)}
+                  placeholder="Here's a summary of what we worked on today."
+                  style={{ minHeight: 72 }}
+                />
+              </Field>
+              <Field label="Lesson Notes — Closing" hint="Shown below the lesson content, above the page link">
+                <textarea
+                  value={form.lesson_email_closing || ''}
+                  onChange={e => set('lesson_email_closing', e.target.value)}
+                  placeholder="Keep practicing and I'll see you next time!"
+                  style={{ minHeight: 72 }}
+                />
+              </Field>
+              <Field label="Onboarding Email — Intro" hint="The first paragraph of the welcome email sent to new students">
+                <textarea
+                  value={form.onboarding_email_intro || ''}
+                  onChange={e => set('onboarding_email_intro', e.target.value)}
+                  placeholder="I've set up a page for you to track our lesson notes, songs, and resources."
+                  style={{ minHeight: 72 }}
+                />
+              </Field>
+              <Field label="Onboarding Email — Closing" hint="The final line of the welcome email, below the page link">
+                <textarea
+                  value={form.onboarding_email_closing || ''}
+                  onChange={e => set('onboarding_email_closing', e.target.value)}
+                  placeholder="Bookmark this link — it's yours and doesn't require any login."
+                  style={{ minHeight: 72 }}
+                />
+              </Field>
+            </Section>
+
             {hasChanges && (
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
                 <button className="btn btn-ghost" onClick={() => setForm(settings)}>Discard</button>

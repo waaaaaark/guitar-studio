@@ -17,6 +17,7 @@ import HowItWorksAdmin from './HowItWorksAdmin'
 import SettingsPage from './SettingsPage'
 import AnalyticsPage from './AnalyticsPage'
 import MoreMenu from './MoreMenu'
+import WeeklyLeaderboard from './WeeklyLeaderboard'
 
 function getInitials(name: string) {
   const parts = name.trim().split(/\s+/)
@@ -242,6 +243,8 @@ export default function AdminPage() {
             </div>
           </div>
         )}
+
+        <WeeklyLeaderboard />
 
         {/* Tabs */}
         <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', marginBottom: 16 }}>

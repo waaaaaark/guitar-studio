@@ -17,13 +17,15 @@ type Props = {
   lessons: any[]
   repertoire: any[]
   stripeThreshold: number
+  weeklyPracticeMinutes: number
 }
 
 type TabKey = 'belt' | 'lessons' | 'practice' | 'resources'
 
-export default function StudentInteractive({ token, student: initialStudent, lessons, repertoire, stripeThreshold }: Props) {
+export default function StudentInteractive({ token, student: initialStudent, lessons, repertoire, stripeThreshold, weeklyPracticeMinutes: initialWeeklyMinutes }: Props) {
   const [student, setStudent] = useState(initialStudent)
   const [lastXP, setLastXP] = useState<number | null>(null)
+  const [weeklyMinutes, setWeeklyMinutes] = useState(initialWeeklyMinutes)
   const beltActive = student.belt_system_active
 
   const [activeTab, setActiveTab] = useState<TabKey>(beltActive ? 'belt' : 'lessons')
@@ -185,6 +187,14 @@ export default function StudentInteractive({ token, student: initialStudent, les
       {/* ── PRACTICE TAB ── */}
       {activeTab === 'practice' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+          {/* Weekly goal */}
+          <PracticeGoal
+            token={token}
+            goalMinutes={student.practice_goal_minutes_week ?? null}
+            weeklyMinutes={weeklyMinutes}
+            onGoalSaved={(g) => setStudent((s: any) => ({ ...s, practice_goal_minutes_week: g }))}
+          />
+
           {/* Timer */}
           <div>
             <h2 style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--accent)', marginBottom: 14, fontFamily: 'sans-serif' }}>
@@ -199,6 +209,7 @@ export default function StudentInteractive({ token, student: initialStudent, les
                   current_stripe_xp: s.current_stripe_xp + xp,
                   total_practice_minutes: s.total_practice_minutes + mins,
                 }))
+                setWeeklyMinutes(m => m + mins)
                 setLastXP(xp)
               }}
             />
@@ -267,6 +278,122 @@ export default function StudentInteractive({ token, student: initialStudent, les
       {/* How does this page work - at the bottom */}
       <div style={{ marginTop: 32 }}>
         <HowItWorksStudent profile={student.student_profile} beltActive={beltActive} label="How does this page work?" />
+      </div>
+    </div>
+  )
+}
+
+function PracticeGoal({ token, goalMinutes, weeklyMinutes, onGoalSaved }: {
+  token: string
+  goalMinutes: number | null
+  weeklyMinutes: number
+  onGoalSaved: (g: number | null) => void
+}) {
+  const [editing, setEditing] = useState(false)
+  const [input, setInput] = useState(goalMinutes != null ? String(goalMinutes) : '')
+  const [saving, setSaving] = useState(false)
+
+  async function saveGoal() {
+    setSaving(true)
+    const goal = input.trim() === '' ? null : Number(input)
+    await fetch('/api/practice', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, goal_minutes_week: goal }),
+    })
+    setSaving(false)
+    onGoalSaved(goal)
+    setEditing(false)
+  }
+
+  if (goalMinutes == null && !editing) {
+    return (
+      <div style={{ marginBottom: 4 }}>
+        <button
+          onClick={() => setEditing(true)}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: 'var(--text-muted)', fontFamily: 'sans-serif', padding: 0, textDecoration: 'underline dotted' }}
+        >
+          Set a weekly practice goal
+        </button>
+      </div>
+    )
+  }
+
+  if (editing) {
+    return (
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--accent)', marginBottom: 10, fontFamily: 'sans-serif' }}>
+          Weekly Goal
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <input
+            type="number"
+            min={0}
+            step={15}
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            placeholder="minutes per week"
+            autoFocus
+            style={{ width: 140, fontSize: 13 }}
+          />
+          <span style={{ fontSize: 13, color: 'var(--text-muted)', fontFamily: 'sans-serif' }}>min / week</span>
+          <button onClick={saveGoal} disabled={saving} style={{
+            padding: '5px 14px', borderRadius: 6, border: 'none', cursor: 'pointer',
+            background: 'var(--accent)', color: 'white', fontSize: 13, fontFamily: 'sans-serif',
+          }}>
+            {saving ? '…' : 'Save'}
+          </button>
+          <button onClick={() => setEditing(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 18 }}>×</button>
+        </div>
+      </div>
+    )
+  }
+
+  const pct = Math.min(100, Math.round((weeklyMinutes / goalMinutes!) * 100))
+  const hit = weeklyMinutes >= goalMinutes!
+  const hoursLogged = (weeklyMinutes / 60).toFixed(1)
+  const hoursGoal = (goalMinutes! / 60).toFixed(1)
+
+  return (
+    <div style={{ marginBottom: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+        <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--accent)', fontFamily: 'sans-serif' }}>
+          This Week's Goal
+        </div>
+        <button
+          onClick={() => { setInput(String(goalMinutes)); setEditing(true) }}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: 'var(--text-muted)', fontFamily: 'sans-serif', padding: 0 }}
+        >
+          edit
+        </button>
+      </div>
+      <div style={{
+        padding: '14px 16px', borderRadius: 10,
+        background: hit ? 'rgba(61,122,82,0.08)' : 'var(--bg-card)',
+        border: `1px solid ${hit ? 'rgba(61,122,82,0.25)' : 'var(--border)'}`,
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
+          <span style={{ fontSize: 22, fontWeight: 700, color: hit ? 'var(--green)' : 'var(--text-primary)', fontFamily: 'sans-serif' }}>
+            {weeklyMinutes} <span style={{ fontSize: 13, fontWeight: 400, color: 'var(--text-muted)' }}>/ {goalMinutes} min</span>
+          </span>
+          <span style={{ fontSize: 13, color: hit ? 'var(--green)' : 'var(--text-muted)', fontFamily: 'sans-serif' }}>
+            {hit ? '✓ Goal hit!' : `${pct}%`}
+          </span>
+        </div>
+        <div style={{ height: 8, background: 'var(--bg-elevated)', borderRadius: 4, overflow: 'hidden' }}>
+          <div style={{
+            height: '100%',
+            width: `${pct}%`,
+            background: hit ? 'var(--green)' : 'var(--accent)',
+            borderRadius: 4,
+            transition: 'width 0.4s ease',
+          }} />
+        </div>
+        {!hit && (
+          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 8, fontFamily: 'sans-serif' }}>
+            {goalMinutes! - weeklyMinutes} min to go this week
+          </div>
+        )}
       </div>
     </div>
   )

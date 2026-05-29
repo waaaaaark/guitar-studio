@@ -114,6 +114,28 @@ export async function POST(req: NextRequest) {
   })
 }
 
+export async function PATCH(req: NextRequest) {
+  const { token, goal_minutes_week } = await req.json()
+  if (!token) return NextResponse.json({ error: 'Missing token' }, { status: 400 })
+
+  const { data: student } = await supabase
+    .from('students')
+    .select('id')
+    .eq('token', token)
+    .eq('active', true)
+    .single()
+
+  if (!student) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+
+  const { error } = await supabase
+    .from('students')
+    .update({ practice_goal_minutes_week: goal_minutes_week ?? null })
+    .eq('id', student.id)
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json({ ok: true })
+}
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const token = searchParams.get('token')

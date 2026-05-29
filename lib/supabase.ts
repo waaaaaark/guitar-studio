@@ -75,6 +75,7 @@ export type Student = {
   longest_streak: number
   last_practice_date: string | null
   total_practice_minutes: number
+  practice_goal_minutes_week: number | null
 }
 
 export type Song = {

@@ -6,24 +6,49 @@ import StudentInteractive from './StudentInteractive'
 import { STRIPE_XP, type Belt } from '@/lib/supabase'
 import PageViewTracker from './PageViewTracker'
 
+function getWeekStart() {
+  const today = new Date()
+  const day = today.getDay() // 0=Sun
+  const diff = day === 0 ? -6 : 1 - day
+  const monday = new Date(today)
+  monday.setDate(today.getDate() + diff)
+  return monday.toISOString().split('T')[0]
+}
+
 async function getStudentData(token: string) {
   const { data: student } = await supabase
     .from('students').select('*').eq('token', token).eq('active', true).single()
   if (!student) return null
 
-  const { data: lessons } = await supabase
-    .from('lessons')
-    .select(`*, lesson_songs(song:songs(*))`)
-    .eq('student_id', student.id)
-    .order('lesson_date', { ascending: false })
+  const weekStart = getWeekStart()
 
-  const { data: repertoire } = await supabase
-    .from('student_songs')
-    .select(`song:songs(*), first_worked_on, mastery_status, mastered_at`)
-    .eq('student_id', student.id)
-    .order('first_worked_on', { ascending: false })
+  const [lessonsRes, repertoireRes, weekSessionsRes] = await Promise.all([
+    supabase
+      .from('lessons')
+      .select(`*, lesson_songs(song:songs(*))`)
+      .eq('student_id', student.id)
+      .order('lesson_date', { ascending: false }),
+    supabase
+      .from('student_songs')
+      .select(`song:songs(*), first_worked_on, mastery_status, mastered_at`)
+      .eq('student_id', student.id)
+      .order('first_worked_on', { ascending: false }),
+    supabase
+      .from('practice_sessions')
+      .select('duration_minutes')
+      .eq('student_id', student.id)
+      .gte('session_date', weekStart),
+  ])
 
-  return { student, lessons: lessons || [], repertoire: repertoire || [] }
+  const weeklyPracticeMinutes = (weekSessionsRes.data || [])
+    .reduce((sum, s) => sum + s.duration_minutes, 0)
+
+  return {
+    student,
+    lessons: lessonsRes.data || [],
+    repertoire: repertoireRes.data || [],
+    weeklyPracticeMinutes,
+  }
 }
 
 export default async function StudentPage({ params }: { params: Promise<{ token: string }> }) {
@@ -31,7 +56,7 @@ export default async function StudentPage({ params }: { params: Promise<{ token:
   const data = await getStudentData(token)
   if (!data) notFound()
 
-  const { student, lessons, repertoire } = data
+  const { student, lessons, repertoire, weeklyPracticeMinutes } = data
   const stripeThreshold = STRIPE_XP[student.belt as Belt] || 0
 
   return (
@@ -68,6 +93,7 @@ export default async function StudentPage({ params }: { params: Promise<{ token:
           lessons={lessons}
           repertoire={repertoire}
           stripeThreshold={stripeThreshold}
+          weeklyPracticeMinutes={weeklyPracticeMinutes}
         />
       </main>
     </div>

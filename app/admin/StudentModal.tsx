@@ -15,6 +15,7 @@ export default function StudentModal({ student, onClose, onSaved }: Props) {
     admin_notes: student?.admin_notes || '',
     student_profile: student?.student_profile || 'Teen',
     belt_system_active: student?.belt_system_active ?? true,
+    practice_goal_minutes_week: student?.practice_goal_minutes_week ?? '',
   })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -111,6 +112,17 @@ export default function StudentModal({ student, onClose, onSaved }: Props) {
                 transition: 'left 0.2s',
               }} />
             </button>
+          </div>
+          <div>
+            <label>Weekly practice goal (minutes)</label>
+            <input
+              type="number"
+              min={0}
+              step={15}
+              value={form.practice_goal_minutes_week}
+              onChange={e => set('practice_goal_minutes_week', e.target.value === '' ? null : Number(e.target.value))}
+              placeholder="e.g. 120 — leave blank for no goal"
+            />
           </div>
           <div>
             <label>Private Notes (admin only)</label>

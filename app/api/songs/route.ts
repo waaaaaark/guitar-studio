@@ -30,6 +30,23 @@ export async function GET() {
   return NextResponse.json(normalized)
 }
 
+export async function DELETE(req: NextRequest) {
+  const authed = await checkAdminAuth()
+  if (!authed) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const { id } = await req.json()
+  if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 })
+
+  // song_tags may not cascade, so delete explicitly
+  await supabase.from('song_tags').delete().eq('song_id', id)
+
+  // lesson_songs and student_songs have ON DELETE CASCADE, handled automatically
+  const { error } = await supabase.from('songs').delete().eq('id', id)
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  return NextResponse.json({ ok: true })
+}
+
 export async function POST(req: NextRequest) {
   const authed = await checkAdminAuth()
   if (!authed) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

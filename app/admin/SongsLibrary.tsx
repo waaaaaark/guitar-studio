@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { ThemeToggle } from '@/lib/theme'
 import ScreenshotImportModal from './ScreenshotImportModal'
 import { useToast } from '@/lib/toast'
@@ -17,6 +17,7 @@ export default function SongsLibrary({ onBack }: { onBack: () => void }) {
   const [addingTagFor, setAddingTagFor] = useState<string | null>(null)
   const [tagInput, setTagInput] = useState('')
   const [tagSuggestions, setTagSuggestions] = useState<string[]>([])
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
 
   async function load() {
     const [songsRes, tagsRes] = await Promise.all([
@@ -48,6 +49,22 @@ export default function SongsLibrary({ onBack }: { onBack: () => void }) {
       load()
       setAddingTagFor(null)
       setTagInput('')
+    }
+  }
+
+  async function deleteSong(id: string) {
+    const res = await fetch('/api/songs', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    })
+    if (res.ok) {
+      toast('Song deleted')
+      setConfirmDeleteId(null)
+      load()
+    } else {
+      const d = await res.json()
+      toast(d.error || 'Error deleting song')
     }
   }
 
@@ -162,6 +179,27 @@ export default function SongsLibrary({ onBack }: { onBack: () => void }) {
                             {isOpen ? '↑' : '↓'}
                           </button>
                         )}
+                        {confirmDeleteId === song.id ? (
+                          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                              {count > 0 ? `Remove from ${count} student${count !== 1 ? 's' : ''}?` : 'Delete?'}
+                            </span>
+                            <button
+                              onClick={() => deleteSong(song.id)}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--red)', fontSize: 12, fontWeight: 600, padding: '0 2px' }}
+                            >Yes</button>
+                            <button
+                              onClick={() => setConfirmDeleteId(null)}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 12, padding: '0 2px' }}
+                            >No</button>
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => { setConfirmDeleteId(song.id); setExpanded(null) }}
+                            title="Delete song"
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 14, opacity: 0.45, padding: '0 2px', lineHeight: 1 }}
+                          >🗑</button>
+                        )}
                       </div>
                     </div>
 
@@ -231,6 +269,7 @@ export default function SongsLibrary({ onBack }: { onBack: () => void }) {
       {showAddModal && (
         <AddSongModal
           allTags={allTags}
+          existingSongs={songs}
           onClose={() => setShowAddModal(false)}
           onSaved={() => { setShowAddModal(false); load(); toast('Song added') }}
         />
@@ -239,7 +278,33 @@ export default function SongsLibrary({ onBack }: { onBack: () => void }) {
   )
 }
 
-function AddSongModal({ allTags, onClose, onSaved }: { allTags: string[]; onClose: () => void; onSaved: () => void }) {
+function normalizeSongTitle(s: string) {
+  return s.toLowerCase().trim().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ')
+}
+
+function findDuplicates(title: string, artist: string, existing: any[]) {
+  const normTitle = normalizeSongTitle(title)
+  if (!normTitle) return { exact: null, similar: [] }
+
+  const normArtist = normalizeSongTitle(artist)
+  const exact = existing.find(s =>
+    normalizeSongTitle(s.title) === normTitle &&
+    normalizeSongTitle(s.artist || '') === normArtist
+  ) || null
+
+  const similar = existing.filter(s => {
+    if (exact && s.id === exact.id) return false
+    const t = normalizeSongTitle(s.title)
+    return (
+      t === normTitle ||
+      (normTitle.length >= 4 && (t.includes(normTitle) || normTitle.includes(t)))
+    )
+  })
+
+  return { exact, similar }
+}
+
+function AddSongModal({ allTags, existingSongs, onClose, onSaved }: { allTags: string[]; existingSongs: any[]; onClose: () => void; onSaved: () => void }) {
   const [title, setTitle] = useState('')
   const [artist, setArtist] = useState('')
   const [tagInput, setTagInput] = useState('')
@@ -247,6 +312,8 @@ function AddSongModal({ allTags, onClose, onSaved }: { allTags: string[]; onClos
   const [suggestions, setSuggestions] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+
+  const { exact: exactDup, similar: similarDups } = findDuplicates(title, artist, existingSongs)
 
   function handleTagInput(val: string) {
     setTagInput(val)
@@ -292,6 +359,21 @@ function AddSongModal({ allTags, onClose, onSaved }: { allTags: string[]; onClos
             <label>Artist (optional)</label>
             <input value={artist} onChange={e => setArtist(e.target.value)} placeholder="Artist or composer" />
           </div>
+          {exactDup && (
+            <div style={{ background: 'var(--red-bg, #fee)', border: '1px solid var(--red, #e55)', borderRadius: 6, padding: '10px 12px', fontSize: 13, color: 'var(--red, #c33)' }}>
+              This exact song already exists in the library.
+            </div>
+          )}
+          {!exactDup && similarDups.length > 0 && (
+            <div style={{ background: 'var(--warning-bg, #fffbe6)', border: '1px solid var(--warning, #d4a017)', borderRadius: 6, padding: '10px 12px', fontSize: 13, color: 'var(--warning-text, #7a5800)' }}>
+              <div style={{ fontWeight: 600, marginBottom: 4 }}>Similar songs already exist:</div>
+              {similarDups.map((s: any) => (
+                <div key={s.id} style={{ opacity: 0.9 }}>
+                  {s.title}{s.artist ? ` — ${s.artist}` : ''}
+                </div>
+              ))}
+            </div>
+          )}
           <div>
             <label>Tags (optional)</label>
             <div style={{ position: 'relative' }}>
@@ -341,7 +423,7 @@ function AddSongModal({ allTags, onClose, onSaved }: { allTags: string[]; onClos
         {error && <div style={{ color: 'var(--red)', fontSize: 13, marginTop: 10 }}>{error}</div>}
         <div style={{ display: 'flex', gap: 10, marginTop: 22, justifyContent: 'flex-end' }}>
           <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
-          <button className="btn btn-primary" onClick={save} disabled={saving}>
+          <button className="btn btn-primary" onClick={save} disabled={saving || !!exactDup}>
             {saving ? 'Saving…' : 'Add song'}
           </button>
         </div>

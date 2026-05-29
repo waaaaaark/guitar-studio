@@ -198,7 +198,7 @@ export default function SongsLibrary({ onBack }: { onBack: () => void }) {
                             onClick={() => { setConfirmDeleteId(song.id); setExpanded(null) }}
                             title="Delete song"
                             style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 14, opacity: 0.45, padding: '0 2px', lineHeight: 1 }}
-                          >🗑</button>
+                          >✕</button>
                         )}
                       </div>
                     </div>

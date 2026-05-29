@@ -4,18 +4,30 @@ import { useState, useRef } from 'react'
 import { useToast } from '@/lib/toast'
 
 type Props = {
+  existingSongs: any[]
   onClose: () => void
   onImported: () => void
 }
 
 type Step = 'upload' | 'review' | 'done'
 
-export default function ScreenshotImportModal({ onClose, onImported }: Props) {
+function normTitle(s: string) {
+  return s.toLowerCase().trim().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ')
+}
+
+function isExisting(song: { title: string; artist: string }, existing: any[]) {
+  const t = normTitle(song.title)
+  const a = normTitle(song.artist || '')
+  return existing.some(e => normTitle(e.title) === t && normTitle(e.artist || '') === a)
+}
+
+export default function ScreenshotImportModal({ existingSongs, onClose, onImported }: Props) {
   const { toast } = useToast()
   const [step, setStep] = useState<Step>('upload')
   const [files, setFiles] = useState<File[]>([])
   const [parsing, setParsing] = useState(false)
   const [songs, setSongs] = useState<{ title: string; artist: string }[]>([])
+  const [duplicateIndices, setDuplicateIndices] = useState<Set<number>>(new Set())
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [importing, setImporting] = useState(false)
   const [result, setResult] = useState<{ imported: number; skipped: number } | null>(null)
@@ -23,8 +35,7 @@ export default function ScreenshotImportModal({ onClose, onImported }: Props) {
 
   function handleFiles(newFiles: FileList | null) {
     if (!newFiles) return
-    const valid = Array.from(newFiles).filter(f => f.type.startsWith('image/'))
-    setFiles(valid)
+    setFiles(Array.from(newFiles).filter(f => f.type.startsWith('image/')))
   }
 
   async function parse() {
@@ -39,8 +50,17 @@ export default function ScreenshotImportModal({ onClose, onImported }: Props) {
     setParsing(false)
 
     if (!res.ok) { toast(data.error || 'Parse failed', 'error'); return }
-    setSongs(data.songs || [])
-    setSelected(new Set(data.songs.map((_: any, i: number) => i)))
+
+    const parsed: { title: string; artist: string }[] = data.songs || []
+
+    // Mark which extracted songs already exist in the library
+    const dups = new Set<number>()
+    parsed.forEach((s, i) => { if (isExisting(s, existingSongs)) dups.add(i) })
+
+    setSongs(parsed)
+    setDuplicateIndices(dups)
+    // Pre-select only new songs; duplicates start deselected
+    setSelected(new Set(parsed.map((_, i) => i).filter(i => !dups.has(i))))
     setStep('review')
   }
 
@@ -62,7 +82,6 @@ export default function ScreenshotImportModal({ onClose, onImported }: Props) {
     if (!toImport.length) return
     setImporting(true)
 
-    // Import each song via the songs API
     let imported = 0
     let skipped = 0
 
@@ -73,7 +92,7 @@ export default function ScreenshotImportModal({ onClose, onImported }: Props) {
         body: JSON.stringify({ title: song.title, artist: song.artist || null }),
       })
       if (res.ok) imported++
-      else skipped++ // likely a duplicate
+      else skipped++
     }
 
     setImporting(false)
@@ -81,6 +100,8 @@ export default function ScreenshotImportModal({ onClose, onImported }: Props) {
     setStep('done')
     toast(`Imported ${imported} song${imported !== 1 ? 's' : ''}`)
   }
+
+  const dupCount = duplicateIndices.size
 
   return (
     <div style={{
@@ -175,6 +196,16 @@ export default function ScreenshotImportModal({ onClose, onImported }: Props) {
               </div>
             ) : (
               <>
+                {dupCount > 0 && (
+                  <div style={{
+                    marginBottom: 12, padding: '8px 12px', borderRadius: 6, fontSize: 13,
+                    background: 'var(--bg-elevated)', border: '1px solid var(--border)',
+                    color: 'var(--text-muted)',
+                  }}>
+                    {dupCount} already in your library — deselected
+                  </div>
+                )}
+
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                   <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>
                     {selected.size} of {songs.length} selected
@@ -185,32 +216,45 @@ export default function ScreenshotImportModal({ onClose, onImported }: Props) {
                 </div>
 
                 <div style={{ maxHeight: 320, overflowY: 'auto', border: '1px solid var(--border)', borderRadius: 8, marginBottom: 20 }}>
-                  {songs.map((song, i) => (
-                    <div
-                      key={i}
-                      onClick={() => toggle(i)}
-                      style={{
-                        display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px',
-                        cursor: 'pointer', borderBottom: i < songs.length - 1 ? '1px solid var(--border)' : 'none',
-                        background: selected.has(i) ? 'var(--accent-glow)' : 'transparent',
-                      }}
-                    >
-                      <div style={{
-                        width: 18, height: 18, borderRadius: 4, flexShrink: 0,
-                        border: `2px solid ${selected.has(i) ? 'var(--accent)' : 'var(--border-light)'}`,
-                        background: selected.has(i) ? 'var(--accent)' : 'transparent',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      }}>
-                        {selected.has(i) && <span style={{ color: '#fff', fontSize: 11 }}>✓</span>}
-                      </div>
-                      <div style={{ minWidth: 0 }}>
-                        <div style={{ color: 'var(--text-primary)', fontSize: 14, fontWeight: 500 }}>{song.title}</div>
-                        {song.artist && (
-                          <div style={{ color: 'var(--text-muted)', fontSize: 12, marginTop: 1 }}>{song.artist}</div>
+                  {songs.map((song, i) => {
+                    const isDup = duplicateIndices.has(i)
+                    return (
+                      <div
+                        key={i}
+                        onClick={() => toggle(i)}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px',
+                          cursor: 'pointer', borderBottom: i < songs.length - 1 ? '1px solid var(--border)' : 'none',
+                          background: selected.has(i) ? 'var(--accent-glow)' : 'transparent',
+                          opacity: isDup && !selected.has(i) ? 0.5 : 1,
+                        }}
+                      >
+                        <div style={{
+                          width: 18, height: 18, borderRadius: 4, flexShrink: 0,
+                          border: `2px solid ${selected.has(i) ? 'var(--accent)' : 'var(--border-light)'}`,
+                          background: selected.has(i) ? 'var(--accent)' : 'transparent',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        }}>
+                          {selected.has(i) && <span style={{ color: '#fff', fontSize: 11 }}>✓</span>}
+                        </div>
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <div style={{ color: 'var(--text-primary)', fontSize: 14, fontWeight: 500 }}>{song.title}</div>
+                          {song.artist && (
+                            <div style={{ color: 'var(--text-muted)', fontSize: 12, marginTop: 1 }}>{song.artist}</div>
+                          )}
+                        </div>
+                        {isDup && (
+                          <span style={{
+                            fontSize: 11, padding: '2px 8px', borderRadius: 20, flexShrink: 0,
+                            background: 'var(--bg-elevated)', color: 'var(--text-muted)',
+                            border: '1px solid var(--border)',
+                          }}>
+                            in library
+                          </span>
                         )}
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
 
                 <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
@@ -239,9 +283,9 @@ export default function ScreenshotImportModal({ onClose, onImported }: Props) {
               <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>
                 {result.imported} song{result.imported !== 1 ? 's' : ''} added
               </div>
-              {result.skipped > 0 && (
+              {dupCount > 0 && (
                 <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
-                  {result.skipped} skipped (already in library)
+                  {dupCount} already in library — skipped
                 </div>
               )}
             </div>

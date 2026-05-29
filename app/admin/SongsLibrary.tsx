@@ -262,6 +262,7 @@ export default function SongsLibrary({ onBack }: { onBack: () => void }) {
 
       {showScreenshotImport && (
         <ScreenshotImportModal
+          existingSongs={songs}
           onClose={() => setShowScreenshotImport(false)}
           onImported={() => { setShowScreenshotImport(false); load() }}
         />

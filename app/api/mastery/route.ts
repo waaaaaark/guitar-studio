@@ -106,6 +106,23 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ ok: true, xp_awarded: SONG_MASTERY_XP })
 }
 
+// Admin dismisses a mastery request — sends song back to 'working'
+export async function DELETE(req: NextRequest) {
+  const authed = await checkAdminAuth()
+  if (!authed) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const { student_id, song_id } = await req.json()
+
+  const { error } = await supabase
+    .from('student_songs')
+    .update({ mastery_status: 'working' })
+    .eq('student_id', student_id)
+    .eq('song_id', song_id)
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json({ ok: true })
+}
+
 // GET — fetch pending mastery requests (for admin notifications)
 export async function GET(req: NextRequest) {
   const authed = await checkAdminAuth()

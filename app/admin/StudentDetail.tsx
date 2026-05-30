@@ -9,6 +9,7 @@ import { useToast } from '@/lib/toast'
 import BeltPanel from './BeltPanel'
 import ResourceAssignPanel from './ResourceAssignPanel'
 import RepertoireAssignPanel from './RepertoireAssignPanel'
+import StudentFilesPanel from './StudentFilesPanel'
 
 function getInitials(name: string) {
   const parts = name.trim().split(/\s+/)
@@ -31,6 +32,7 @@ export default function StudentDetail({ student: initialStudent, onBack, onStude
   const [allSongs, setAllSongs] = useState<Song[]>([])
   const [exporting, setExporting] = useState(false)
   const [showAllLessons, setShowAllLessons] = useState(false)
+  const [mainTab, setMainTab] = useState<'lessons' | 'files'>('lessons')
   const LESSONS_INITIAL = 3
 
   const load = useCallback(async () => {
@@ -196,12 +198,37 @@ export default function StudentDetail({ student: initialStudent, onBack, onStude
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 260px', gap: 20, alignItems: 'start' }}
           className="responsive-grid">
 
-          {/* Lessons */}
+          {/* Lessons / Files tabs */}
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>Lessons</h2>
-              <button className="btn btn-primary btn-sm" onClick={() => setShowAddLesson(true)}>+ Log Lesson</button>
+              <div style={{ display: 'flex', gap: 2, background: 'var(--bg-elevated)', borderRadius: 8, padding: 3, border: '1px solid var(--border)' }}>
+                {(['lessons', 'files'] as const).map(tab => (
+                  <button
+                    key={tab}
+                    onClick={() => setMainTab(tab)}
+                    style={{
+                      padding: '5px 14px', borderRadius: 6, border: 'none', cursor: 'pointer',
+                      fontSize: 13, fontWeight: 500, fontFamily: 'inherit',
+                      background: mainTab === tab ? 'var(--bg-card)' : 'transparent',
+                      color: mainTab === tab ? 'var(--text-primary)' : 'var(--text-muted)',
+                      boxShadow: mainTab === tab ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    {tab === 'lessons' ? 'Lessons' : 'Files'}
+                  </button>
+                ))}
+              </div>
+              {mainTab === 'lessons' && (
+                <button className="btn btn-primary btn-sm" onClick={() => setShowAddLesson(true)}>+ Log Lesson</button>
+              )}
             </div>
+
+            {mainTab === 'files' && (
+              <StudentFilesPanel studentId={student.id} />
+            )}
+
+            {mainTab === 'lessons' && (<>
 
             {loading ? (
               <div style={{ color: 'var(--text-muted)', fontSize: 14 }}>Loading…</div>
@@ -283,6 +310,7 @@ export default function StudentDetail({ student: initialStudent, onBack, onStude
                 )}
               </div>
             )}
+            </>)}
           </div>
 
           {/* Repertoire + Resources sidebar */}

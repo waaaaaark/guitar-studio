@@ -27,9 +27,14 @@ export default function StudentModal({ student, onClose, onSaved }: Props) {
   async function save() {
     if (!form.name.trim()) { setError('Name is required'); return }
     setSaving(true); setError('')
+    const payload = {
+      ...form,
+      email: form.email.trim() || null,
+      practice_goal_minutes_week: form.practice_goal_minutes_week === '' ? null : form.practice_goal_minutes_week,
+    }
     const res = student
-      ? await fetch(`/api/students/${student.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) })
-      : await fetch('/api/students', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) })
+      ? await fetch(`/api/students/${student.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+      : await fetch('/api/students', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
     setSaving(false)
     if (res.ok) onSaved()
     else { const d = await res.json(); setError(d.error || 'Something went wrong') }

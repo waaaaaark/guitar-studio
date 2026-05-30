@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/prune-student-files",
+      "schedule": "0 3 * * *"
+    }
+  ]
+}

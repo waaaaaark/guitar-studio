@@ -97,6 +97,18 @@ export default function BeltPanel({ student, repertoire, onStudentUpdated }: Pro
     }
   }
 
+  async function dismissMastery(songId: string, songTitle: string) {
+    const res = await fetch('/api/mastery', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ student_id: student.id, song_id: songId }),
+    })
+    if (res.ok) {
+      toast(`${songTitle} sent back to working`)
+      onStudentUpdated()
+    }
+  }
+
   async function generateCert(type: 'belt' | 'stripe') {
     setCertGenerating(true)
     try {
@@ -431,12 +443,20 @@ export default function BeltPanel({ student, repertoire, onStudentUpdated }: Pro
                         <span style={{ color: 'var(--text-primary)', fontSize: 14 }}>{r.song.title}</span>
                         {r.song.artist && <span style={{ color: 'var(--text-muted)', fontSize: 13, marginLeft: 8 }}>{r.song.artist}</span>}
                       </div>
-                      <button
-                        className="btn btn-primary btn-sm"
-                        onClick={() => approveMastery(r.song.id, r.song.title)}
-                      >
-                        ✓ Approve +100 XP
-                      </button>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => dismissMastery(r.song.id, r.song.title)}
+                        >
+                          Dismiss
+                        </button>
+                        <button
+                          className="btn btn-primary btn-sm"
+                          onClick={() => approveMastery(r.song.id, r.song.title)}
+                        >
+                          ✓ Approve +100 XP
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>

@@ -33,6 +33,8 @@ export default function StudentFilesPanel({ studentId }: { studentId: string }) 
   const [files, setFiles] = useState<StudentFile[]>([])
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
+  const [pendingFile, setPendingFile] = useState<File | null>(null)
+  const [pendingName, setPendingName] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
 
   async function load() {
@@ -44,12 +46,20 @@ export default function StudentFilesPanel({ studentId }: { studentId: string }) 
 
   useEffect(() => { load() }, [studentId])
 
-  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
+  function handleFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
+    setPendingFile(file)
+    setPendingName(file.name)
+    e.target.value = ''
+  }
+
+  async function confirmUpload() {
+    if (!pendingFile) return
     setUploading(true)
     const form = new FormData()
-    form.append('file', file)
+    form.append('file', pendingFile)
+    form.append('display_name', pendingName.trim() || pendingFile.name)
     const res = await fetch(`/api/students/${studentId}/files`, { method: 'POST', body: form })
     if (res.ok) {
       toast('File uploaded')
@@ -59,7 +69,8 @@ export default function StudentFilesPanel({ studentId }: { studentId: string }) 
       toast(d.error || 'Upload failed', 'error')
     }
     setUploading(false)
-    e.target.value = ''
+    setPendingFile(null)
+    setPendingName('')
   }
 
   async function deleteFile(fileId: string, name: string) {
@@ -78,23 +89,47 @@ export default function StudentFilesPanel({ studentId }: { studentId: string }) 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <div>
           <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>Temp Files</h2>
-          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>Screenshots & PDFs · auto-deleted after 7 days</div>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>Screenshots & PDFs · auto-deleted after 14 days</div>
         </div>
-        <button
-          className="btn btn-primary btn-sm"
-          onClick={() => inputRef.current?.click()}
-          disabled={uploading}
-        >
-          {uploading ? 'Uploading…' : '+ Upload'}
-        </button>
+        {!pendingFile && (
+          <button
+            className="btn btn-primary btn-sm"
+            onClick={() => inputRef.current?.click()}
+          >
+            + Upload
+          </button>
+        )}
         <input
           ref={inputRef}
           type="file"
           accept="image/*,application/pdf"
           style={{ display: 'none' }}
-          onChange={handleUpload}
+          onChange={handleFileSelected}
         />
       </div>
+
+      {pendingFile && (
+        <div className="card" style={{ padding: '14px 16px', marginBottom: 12 }}>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>
+            Name this file for the student
+          </div>
+          <input
+            autoFocus
+            value={pendingName}
+            onChange={e => setPendingName(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') confirmUpload(); if (e.key === 'Escape') { setPendingFile(null); setPendingName('') } }}
+            style={{ width: '100%', marginBottom: 10 }}
+          />
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <button className="btn btn-ghost btn-sm" onClick={() => { setPendingFile(null); setPendingName('') }}>
+              Cancel
+            </button>
+            <button className="btn btn-primary btn-sm" onClick={confirmUpload} disabled={uploading}>
+              {uploading ? 'Uploading…' : 'Upload'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <div style={{ color: 'var(--text-muted)', fontSize: 14 }}>Loading…</div>

@@ -38,6 +38,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const { id } = await params
   const formData = await req.formData()
   const file = formData.get('file') as File | null
+  const displayName = (formData.get('display_name') as string | null)?.trim() || null
 
   if (!file) return NextResponse.json({ error: 'No file provided' }, { status: 400 })
   if (file.size > MAX_FILE_SIZE) return NextResponse.json({ error: 'File too large (max 20MB)' }, { status: 400 })
@@ -60,7 +61,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .from('student_files')
     .insert({
       student_id: id,
-      file_name: file.name,
+      file_name: displayName || file.name,
       file_path: filePath,
       file_size: file.size,
       file_type: file.type,

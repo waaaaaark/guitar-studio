@@ -24,7 +24,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   const { data: repertoire } = await supabase
     .from('student_songs')
-    .select(`song:songs(*), first_worked_on`)
+    .select(`song:songs(*), first_worked_on, mastery_status, mastered_at`)
     .eq('student_id', id)
     .order('first_worked_on', { ascending: false })
 

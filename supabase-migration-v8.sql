@@ -18,6 +18,9 @@ create table if not exists student_files (
 create index if not exists student_files_student_idx on student_files(student_id);
 create index if not exists student_files_expires_idx on student_files(expires_at);
 
+-- Disable RLS (app uses anon key with custom auth, consistent with other tables)
+alter table student_files disable row level security;
+
 -- ============================================
 -- SUPABASE STORAGE SETUP (do this in dashboard)
 -- ============================================

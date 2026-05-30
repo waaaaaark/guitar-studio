@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase'
 
 const BUCKET = 'student-files'
 const MAX_FILE_SIZE = 20 * 1024 * 1024 // 20MB
-const EXPIRY_DAYS = 7
+const EXPIRY_DAYS = 14
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const authed = await checkAdminAuth()

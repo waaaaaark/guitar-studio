@@ -7,6 +7,7 @@ import { type Belt, type StudentProfile, STRIPE_XP } from '@/lib/supabase'
 import CurriculumChecklist from './CurriculumChecklist'
 import HowItWorksStudent from './HowItWorksStudent'
 import StudentResources from './StudentResources'
+import StudentTempFiles from './StudentTempFiles'
 import PastLessons from './PastLessons'
 import RepertoireList from './RepertoireList'
 import { format } from 'date-fns'
@@ -40,7 +41,7 @@ export default function StudentInteractive({ token, student: initialStudent, les
     ...(beltActive ? [{ key: 'belt' as TabKey, label: 'Belt' }] : []),
     { key: 'lessons', label: 'Lessons' },
     { key: 'practice', label: 'Practice' },
-    { key: 'resources', label: 'Resources' },
+    { key: 'resources', label: 'Files' },
   ]
 
   return (
@@ -271,9 +272,15 @@ export default function StudentInteractive({ token, student: initialStudent, les
         </div>
       )}
 
-      {/* ── RESOURCES TAB ── */}
+      {/* ── FILES TAB ── */}
       {activeTab === 'resources' && (
-        <StudentResources token={token} showEmpty />
+        <div>
+          <StudentTempFiles token={token} />
+          <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--accent)', marginBottom: 12, fontFamily: 'sans-serif' }}>
+            Learning Resources
+          </div>
+          <StudentResources token={token} showEmpty />
+        </div>
       )}
       {/* How does this page work - at the bottom */}
       <div style={{ marginTop: 32 }}>

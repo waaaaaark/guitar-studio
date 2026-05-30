@@ -12,7 +12,7 @@ create table if not exists student_files (
   file_size bigint,
   file_type text,
   created_at timestamptz not null default now(),
-  expires_at timestamptz not null default (now() + interval '7 days')
+  expires_at timestamptz not null default (now() + interval '14 days')
 );
 
 create index if not exists student_files_student_idx on student_files(student_id);
